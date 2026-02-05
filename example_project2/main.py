@@ -36,7 +36,7 @@ except ImportError:
 
 
 def main():
-    for i in range(2):
+    while True:
         """Main function demonstrating all import types"""
         print("=== Complex Import Structure Demo ===")
 
@@ -77,6 +77,8 @@ def main():
             print("Numpy not available")
 
         print("=== Demo Complete ===")
+
+        time.sleep(10)
         
 
 if __name__ == "__main__":

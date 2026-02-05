@@ -20,12 +20,13 @@ class PyObfuscator:
     A simple Python obfuscator base class
     """
     
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False):
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
         self.output_dir = Path(output_dir)
         self.remap = remap
+        self.anti_debug = anti_debug
         self.imports_whitelist = set()
         self.modules_to_obfuscate = []
         self.remap_map = {}  # Store mapping of original names to obfuscated names
@@ -259,6 +260,100 @@ class PyObfuscator:
                 
         except Exception as e:
             print(f"Error remapping {file_path}: {e}")
+    
+    def add_anti_debug_protection(self, file_path: Path):
+        """
+        Add anti-debug and anti-injection protection to a file
+        """
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Create the protection code to add at the top of the file
+        protection_code = '''import sys
+import os
+# Anti-debug and anti-injection protection
+try:
+    from anti_debug_injector import enable_protection
+    enable_protection()
+except ImportError:
+    # If the module is not available, define a dummy function
+    def enable_protection():
+        pass
+
+'''
+        
+        # Check if protection is already added
+        if "# Anti-debug and anti-injection protection" in content:
+            return  # Already added
+        
+        # Split content into lines
+        lines = content.split('\n')
+        
+        # Find the position to insert the protection code
+        # After any shebang, encoding declaration, or docstring
+        insert_pos = 0
+        
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            
+            # Skip empty lines, comments, and module docstrings
+            if (stripped == "" or 
+                stripped.startswith('#') or 
+                stripped.startswith('"""') or 
+                stripped.startswith("'''")):
+                insert_pos = i + 1
+                continue
+            # Stop at the first actual code line that's not an import
+            elif not stripped.startswith('import ') and not stripped.startswith('from '):
+                break
+            else:
+                # It's an import, continue looking
+                insert_pos = i + 1
+                continue
+        
+        # Insert the protection code
+        lines.insert(insert_pos, protection_code)
+        
+        # Join the lines back together
+        new_content = '\n'.join(lines)
+        
+        # Write the updated content back to the file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+    
+    def add_anti_debug_protection_to_entry_point(self):
+        """
+        Add anti-debug protection specifically to the entry point file
+        """
+        # The entry point file is already in the output directory
+        entry_point_path = self.output_dir / self.entry_point
+        
+        # Read the current content
+        with open(entry_point_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Create the protection code to add at the very beginning
+        protection_code = '''# Anti-debug and anti-injection protection
+try:
+    from anti_debug_injector import enable_protection
+    enable_protection()
+except ImportError:
+    # If the module is not available, define a dummy function
+    def enable_protection():
+        pass
+
+'''
+        
+        # Check if protection is already added
+        if "# Anti-debug and anti-injection protection" in content:
+            return  # Already added
+        
+        # Add protection at the very beginning of the file
+        new_content = protection_code + content
+        
+        # Write the updated content back to the file
+        with open(entry_point_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
         
     def get_python_modules(self) -> List[Path]:
         """
@@ -335,6 +430,24 @@ class PyObfuscator:
                 self.remap_code_in_file(module)
                 print(f"Remapped: {module}")
         
+        # Add anti-debug protection if enabled
+        if self.anti_debug:
+            print("Adding anti-debug and anti-injection protection...")
+            # Copy the protection module to the output directory
+            protection_module_path = self.output_dir / "anti_debug_injector.py"
+            import shutil
+            shutil.copy("anti_debug_injector.py", protection_module_path)
+            
+            # Add protection to the entry point file first
+            self.add_anti_debug_protection_to_entry_point()
+            print(f"Added anti-debug protection to entry point: {self.entry_point}")
+            
+            # Add protection to each module
+            for module in modules:
+                if module.name != "anti_debug_injector.py":  # Don't add protection to itself
+                    self.add_anti_debug_protection(module)
+                    print(f"Added anti-debug protection to: {module}")
+        
         # Add banner to each module
         for module in modules:
             self.add_banner_to_module(module, banner_text)
@@ -360,6 +473,7 @@ def main():
     parser.add_argument("--banner", default="Obfuscated by PyLockWare Obfuscator", help="Banner text to add to modules")
     parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
+    parser.add_argument("--anti-debug", action="store_true", help="Enable anti-debug and anti-injection protection")
     
     args = parser.parse_args()
     
@@ -368,7 +482,8 @@ def main():
         entry_point=args.entry_point,
         entry_function=args.entry_function,
         output_dir=args.output_dir,
-        remap=args.remap
+        remap=args.remap,
+        anti_debug=args.anti_debug
     )
     
     obfuscator.run_obfuscation(args.banner)
