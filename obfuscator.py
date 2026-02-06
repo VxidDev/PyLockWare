@@ -19,14 +19,14 @@ class PyObfuscator:
     """
     A simple Python obfuscator base class
     """
-    
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: bool = False):
+
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
         self.output_dir = Path(output_dir)
         self.remap = remap
-        self.anti_debug = anti_debug
+        self.anti_debug = anti_debug  # Can be None, 'normal', or 'strict'
         self.imports_whitelist = set()
         self.modules_to_obfuscate = []
         self.remap_map = {}  # Store mapping of original names to obfuscated names
@@ -267,13 +267,19 @@ class PyObfuscator:
         """
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
+
+        # Determine which anti-debug module to use based on the setting
+        if self.anti_debug == 'normal':
+            module_name = 'anti_debug_injector_normal'
+        else:  # Default to strict if not specified or if 'strict'
+            module_name = 'anti_debug_injector'
+
         # Create the protection code to add at the top of the file
-        protection_code = '''import sys
+        protection_code = f'''import sys
 import os
 # Anti-debug and anti-injection protection
 try:
-    from anti_debug_injector import enable_protection
+    from {module_name} import enable_protection
     enable_protection()
 except ImportError:
     # If the module is not available, define a dummy function
@@ -281,7 +287,7 @@ except ImportError:
         pass
 
 '''
-        
+
         # Check if protection is already added
         if "# Anti-debug and anti-injection protection" in content:
             return  # Already added
@@ -296,15 +302,21 @@ except ImportError:
         """
         # The entry point file is already in the output directory
         entry_point_path = self.output_dir / self.entry_point
-        
+
         # Read the current content
         with open(entry_point_path, 'r', encoding='utf-8') as f:
             content = f.read()
-        
+
+        # Determine which anti-debug module to use based on the setting
+        if self.anti_debug == 'normal':
+            module_name = 'anti_debug_injector_normal'
+        else:  # Default to strict if not specified or if 'strict'
+            module_name = 'anti_debug_injector'
+
         # Create the protection code to add at the very beginning
-        protection_code = '''# Anti-debug and anti-injection protection
+        protection_code = f'''# Anti-debug and anti-injection protection
 try:
-    from anti_debug_injector import enable_protection
+    from {module_name} import enable_protection
     enable_protection()
 except ImportError:
     # If the module is not available, define a dummy function
@@ -402,18 +414,30 @@ except ImportError:
         # Add anti-debug protection if enabled
         if self.anti_debug:
             print("Adding anti-debug and anti-injection protection...")
-            # Copy the protection module to the output directory
-            protection_module_path = self.output_dir / "anti_debug_injector.py"
+            # Copy the appropriate protection module(s) to the output directory
             import shutil
-            shutil.copy("anti_debug_injector.py", protection_module_path)
             
+            if self.anti_debug == 'normal':
+                # Copy the normal anti-debug module
+                protection_module_path = self.output_dir / "anti_debug_injector_normal.py"
+                shutil.copy("anti_debug_injector_normal.py", protection_module_path)
+            elif self.anti_debug == 'strict' or self.anti_debug is True:
+                # Copy the strict anti-debug module (original behavior)
+                protection_module_path = self.output_dir / "anti_debug_injector.py"
+                shutil.copy("anti_debug_injector.py", protection_module_path)
+            else:
+                # Default to strict if not specified
+                protection_module_path = self.output_dir / "anti_debug_injector.py"
+                shutil.copy("anti_debug_injector.py", protection_module_path)
+
             # Add protection to the entry point file first
             self.add_anti_debug_protection_to_entry_point()
             print(f"Added anti-debug protection to entry point: {self.entry_point}")
-            
+
             # Add protection to each module
             for module in modules:
-                if module.name != "anti_debug_injector.py":  # Don't add protection to itself
+                # Don't add protection to the anti-debug modules themselves
+                if module.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py"]:
                     self.add_anti_debug_protection(module)
                     print(f"Added anti-debug protection to: {module}")
         
@@ -442,7 +466,7 @@ def main():
     parser.add_argument("--banner", default="Obfuscated by PyLockWare Obfuscator", help="Banner text to add to modules")
     parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
-    parser.add_argument("--anti-debug", action="store_true", help="Enable anti-debug and anti-injection protection")
+    parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
     
     args = parser.parse_args()
     
