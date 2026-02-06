@@ -285,42 +285,11 @@ except ImportError:
         # Check if protection is already added
         if "# Anti-debug and anti-injection protection" in content:
             return  # Already added
-        
-        # Split content into lines
-        lines = content.split('\n')
-        
-        # Find the position to insert the protection code
-        # After any shebang, encoding declaration, or docstring
-        insert_pos = 0
-        
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            
-            # Skip empty lines, comments, and module docstrings
-            if (stripped == "" or 
-                stripped.startswith('#') or 
-                stripped.startswith('"""') or 
-                stripped.startswith("'''")):
-                insert_pos = i + 1
-                continue
-            # Stop at the first actual code line that's not an import
-            elif not stripped.startswith('import ') and not stripped.startswith('from '):
-                break
-            else:
-                # It's an import, continue looking
-                insert_pos = i + 1
-                continue
-        
-        # Insert the protection code
-        lines.insert(insert_pos, protection_code)
-        
-        # Join the lines back together
-        new_content = '\n'.join(lines)
-        
-        # Write the updated content back to the file
+
         with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(new_content)
-    
+            f.write(protection_code + content)
+
+
     def add_anti_debug_protection_to_entry_point(self):
         """
         Add anti-debug protection specifically to the entry point file
