@@ -15,18 +15,20 @@ from typing import Set, List, Dict, Any
 from remap_transformer import GlobalRenamer
 
 
+
 class PyObfuscator:
     """
     A simple Python obfuscator base class
     """
 
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None):
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None, obfuscate_imports: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
         self.output_dir = Path(output_dir)
         self.remap = remap
         self.anti_debug = anti_debug  # Can be None, 'normal', or 'strict'
+        self.obfuscate_imports = obfuscate_imports
         self.imports_whitelist = set()
         self.modules_to_obfuscate = []
         self.remap_map = {}  # Store mapping of original names to obfuscated names
@@ -342,7 +344,8 @@ except ImportError:
         """
         modules = []
         for py_file in self.output_dir.rglob("*.py"):
-            if py_file.name != "obfuscator.py":  # Exclude our own script
+            # Include all Python files except the obfuscator script itself
+            if py_file.name != "obfuscator.py":
                 modules.append(py_file)
         return modules
     
@@ -385,38 +388,27 @@ except ImportError:
         print(f"Entry point: {self.entry_point}")
         print(f"Entry function: {self.entry_function}")
         print(f"Remap enabled: {self.remap}")
-        
+
         # Validate paths
         self.validate_paths()
-        
+
         # Copy project to output directory
         self.copy_project_to_output()
-        
+
         # Build imports whitelist from the original project
         self.build_imports_whitelist()
         print(f"Collected {len(self.imports_whitelist)} imports for whitelist")
-        
+
         # Get all modules from the output directory
         modules = self.get_python_modules()
         print(f"Found {len(modules)} modules to process in output directory")
-        
-        # Perform remapping if enabled
-        if self.remap:
-            print("Building global replacements...")
-            self.build_global_replacements(self.output_dir)
-            print(f"Created {len(self.remap_map)} global replacements")
-            
-            print("Performing remapping on all modules...")
-            for module in modules:
-                self.remap_code_in_file(module)
-                print(f"Remapped: {module}")
-        
+
         # Add anti-debug protection if enabled
         if self.anti_debug:
             print("Adding anti-debug and anti-injection protection...")
             # Copy the appropriate protection module(s) to the output directory
             import shutil
-            
+
             if self.anti_debug == 'normal':
                 # Copy the normal anti-debug module
                 protection_module_path = self.output_dir / "anti_debug_injector_normal.py"
@@ -440,12 +432,25 @@ except ImportError:
                 if module.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py"]:
                     self.add_anti_debug_protection(module)
                     print(f"Added anti-debug protection to: {module}")
-        
+
+        # Perform remapping if enabled
+        if self.remap:
+            print("Building global replacements...")
+            self.build_global_replacements(self.output_dir)
+            print(f"Created {len(self.remap_map)} global replacements")
+
+            print("Performing remapping on all modules...")
+            for module in modules:
+                self.remap_code_in_file(module)
+                print(f"Remapped: {module}")
+
+
+
         # Add banner to each module
         for module in modules:
             self.add_banner_to_module(module, banner_text)
             print(f"Added banner to: {module}")
-            
+
         print(f"Obfuscation process completed! Output saved to: {self.output_dir}")
     
     def copy_project_to_output(self):
@@ -467,16 +472,17 @@ def main():
     parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
     parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
-    
+
+
     args = parser.parse_args()
-    
+
     obfuscator = PyObfuscator(
         project_path=args.project_path,
         entry_point=args.entry_point,
         entry_function=args.entry_function,
         output_dir=args.output_dir,
         remap=args.remap,
-        anti_debug=args.anti_debug
+        anti_debug=args.anti_debug,
     )
     
     obfuscator.run_obfuscation(args.banner)
