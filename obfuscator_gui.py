@@ -133,17 +133,27 @@ class ObfuscatorGUI(QMainWindow):
         """Create the obfuscation settings tab"""
         tab = QWidget()
         layout = QVBoxLayout()
-        
+
         # Remap option
         self.remap_checkbox = QCheckBox("Enable renaming of functions, variables, etc. to random names")
         layout.addWidget(self.remap_checkbox)
-        
+
         # Description for remapping
         remap_desc = QLabel("Remapping renames all functions, variables, classes, and other identifiers to random names,\nmaking the code harder to understand and reverse engineer.")
         remap_desc.setWordWrap(True)
         remap_desc.setStyleSheet("color: gray;")
         layout.addWidget(remap_desc)
-        
+
+        # Import obfuscation option
+        self.obfuscate_imports_checkbox = QCheckBox("Enable obfuscation of import statements")
+        layout.addWidget(self.obfuscate_imports_checkbox)
+
+        # Description for import obfuscation
+        import_desc = QLabel("Import obfuscation transforms all static imports to dynamic imports via __import__(),\nmaking it harder to determine dependencies.")
+        import_desc.setWordWrap(True)
+        import_desc.setStyleSheet("color: gray;")
+        layout.addWidget(import_desc)
+
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
         return tab
@@ -235,6 +245,7 @@ class ObfuscatorGUI(QMainWindow):
             'entry_function': self.entry_function_edit.text().strip(),
             'output_dir': self.output_dir_edit.text().strip(),
             'remap': self.remap_checkbox.isChecked(),
+            'obfuscate_imports': self.obfuscate_imports_checkbox.isChecked(),
         }
         
         # Set anti-debug option
