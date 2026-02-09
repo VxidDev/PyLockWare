@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Set, List, Dict, Any
 
 from remap_transformer import GlobalRenamer
-from test import obfuscate_imports
 
 
 
@@ -22,14 +21,13 @@ class PyObfuscator:
     A simple Python obfuscator base class
     """
 
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None, obfuscate_imports: bool = False):
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
         self.output_dir = Path(output_dir)
         self.remap = remap
         self.anti_debug = anti_debug  # Can be None, 'normal', or 'strict'
-        self.obfuscate_imports = obfuscate_imports
         self.imports_whitelist = set()
         self.modules_to_obfuscate = []
         self.remap_map = {}  # Store mapping of original names to obfuscated names
@@ -466,7 +464,6 @@ except ImportError:
         print(f"Entry point: {self.entry_point}")
         print(f"Entry function: {self.entry_function}")
         print(f"Remap enabled: {self.remap}")
-        print(f"Import obfuscation enabled: {self.obfuscate_imports}")
 
         # Validate paths
         self.validate_paths()
@@ -506,6 +503,10 @@ except ImportError:
             print(f"Added anti-debug protection to entry point: {self.entry_point}")
 
             # Add protection to each module
+            # Add the protection function name to whitelist to prevent it from being remapped
+            if self.anti_debug:
+                self.imports_whitelist.add("enable_protection")
+                
             for module in modules:
                 # Don't add protection to the anti-debug modules themselves
                 if module.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py"]:
@@ -520,23 +521,13 @@ except ImportError:
 
             print("Performing remapping on all modules...")
             for module in modules:
-                self.remap_code_in_file(module)
-                print(f"Remapped: {module}")
-
-        # Perform import obfuscation if enabled (after remapping to avoid conflicts with renamed identifiers)
-        if self.obfuscate_imports:
-            print("Obfuscating imports in all modules...")
-            for module in modules:
-                # Don't obfuscate the anti-debug modules themselves
+                # Skip remapping for anti-debug modules to preserve their internal function names
                 if module.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py"]:
-                    with open(module, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    obfuscated_content = obfuscate_imports(content)
-                    if obfuscated_content:
-                        with open(module, 'w', encoding='utf-8') as f:
-                            f.write(obfuscated_content)
-                        print(f"Obfuscated imports in: {module}")
+                    self.remap_code_in_file(module)
+                    print(f"Remapped: {module}")
+                else:
+                    print(f"Skipped remapping for anti-debug module: {module}")
+
 
 
 
@@ -565,7 +556,6 @@ def main():
     parser.add_argument("--banner", default="Obfuscated by PyLockWare Obfuscator", help="Banner text to add to modules")
     parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
-    parser.add_argument("--obfuscate-imports", action="store_true", help="Enable obfuscation of import statements")
     parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
 
 
@@ -578,7 +568,6 @@ def main():
         output_dir=args.output_dir,
         remap=args.remap,
         anti_debug=args.anti_debug,
-        obfuscate_imports=args.obfuscate_imports,
     )
 
     obfuscator.run_obfuscation(args.banner)

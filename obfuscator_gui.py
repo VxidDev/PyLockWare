@@ -144,15 +144,6 @@ class ObfuscatorGUI(QMainWindow):
         remap_desc.setStyleSheet("color: gray;")
         layout.addWidget(remap_desc)
 
-        # Import obfuscation option
-        self.obfuscate_imports_checkbox = QCheckBox("Enable obfuscation of import statements")
-        layout.addWidget(self.obfuscate_imports_checkbox)
-
-        # Description for import obfuscation
-        import_desc = QLabel("Import obfuscation transforms all static imports to dynamic imports via __import__(),\nmaking it harder to determine dependencies.")
-        import_desc.setWordWrap(True)
-        import_desc.setStyleSheet("color: gray;")
-        layout.addWidget(import_desc)
 
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
@@ -245,7 +236,6 @@ class ObfuscatorGUI(QMainWindow):
             'entry_function': self.entry_function_edit.text().strip(),
             'output_dir': self.output_dir_edit.text().strip(),
             'remap': self.remap_checkbox.isChecked(),
-            'obfuscate_imports': self.obfuscate_imports_checkbox.isChecked(),
         }
         
         # Set anti-debug option
