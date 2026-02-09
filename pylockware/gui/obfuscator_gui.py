@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont
 
-from obfuscator import PyObfuscator
+from pylockware.core.obfuscator import PyObfuscator
 
 
 class ObfuscatorWorker(QThread):
@@ -144,6 +144,15 @@ class ObfuscatorGUI(QMainWindow):
         remap_desc.setStyleSheet("color: gray;")
         layout.addWidget(remap_desc)
 
+        # String protection option
+        self.string_prot_checkbox = QCheckBox("Enable string protection using base64 and zlib encoding")
+        layout.addWidget(self.string_prot_checkbox)
+
+        # Description for string protection
+        string_prot_desc = QLabel("String protection encodes string literals in your code using base64 and zlib,\nmaking it harder to identify sensitive strings in your application.")
+        string_prot_desc.setWordWrap(True)
+        string_prot_desc.setStyleSheet("color: gray;")
+        layout.addWidget(string_prot_desc)
 
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
@@ -236,8 +245,9 @@ class ObfuscatorGUI(QMainWindow):
             'entry_function': self.entry_function_edit.text().strip(),
             'output_dir': self.output_dir_edit.text().strip(),
             'remap': self.remap_checkbox.isChecked(),
+            'string_prot': self.string_prot_checkbox.isChecked(),
         }
-        
+
         # Set anti-debug option
         if self.anti_debug_checkbox.isChecked():
             anti_debug_choice = self.anti_debug_combo.currentText()

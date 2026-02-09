@@ -12,8 +12,8 @@ import string
 from pathlib import Path
 from typing import Set, List, Dict, Any
 
-from remap_transformer import GlobalRenamer
-from str_prot import StringProtectionTransformer
+from pylockware.transforms.remap_transformer import GlobalRenamer
+from pylockware.transforms.str_prot import StringProtectionTransformer
 
 
 
@@ -528,15 +528,27 @@ except ImportError:
             if self.anti_debug == 'normal':
                 # Copy the normal anti-debug module
                 protection_module_path = self.output_dir / "anti_debug_injector_normal.py"
-                shutil.copy("anti_debug_injector_normal.py", protection_module_path)
+                # Get the path to the anti_debug_injector_normal module
+                import os
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector_normal.py')
+                module_path = os.path.abspath(module_path)
+                shutil.copy(module_path, protection_module_path)
             elif self.anti_debug == 'strict' or self.anti_debug is True:
                 # Copy the strict anti-debug module (original behavior)
                 protection_module_path = self.output_dir / "anti_debug_injector.py"
-                shutil.copy("anti_debug_injector.py", protection_module_path)
+                # Get the path to the anti_debug_injector module
+                import os
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector.py')
+                module_path = os.path.abspath(module_path)
+                shutil.copy(module_path, protection_module_path)
             else:
                 # Default to strict if not specified
                 protection_module_path = self.output_dir / "anti_debug_injector.py"
-                shutil.copy("anti_debug_injector.py", protection_module_path)
+                # Get the path to the anti_debug_injector module
+                import os
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector.py')
+                module_path = os.path.abspath(module_path)
+                shutil.copy(module_path, protection_module_path)
 
             # Add protection to the entry point file first
             self.add_anti_debug_protection_to_entry_point()
@@ -546,7 +558,7 @@ except ImportError:
             # Add the protection function name to whitelist to prevent it from being remapped
             if self.anti_debug:
                 self.imports_whitelist.add("enable_protection")
-                
+
             for module in modules:
                 # Don't add protection to the anti-debug modules themselves
                 if module.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py"]:
@@ -588,32 +600,3 @@ except ImportError:
         shutil.copytree(self.project_path, self.output_dir)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Simple Python Obfuscator")
-    parser.add_argument("project_path", help="Path to the project to obfuscate")
-    parser.add_argument("--entry-point", required=True, help="Entry point file of the project (e.g., main.py)")
-    parser.add_argument("--entry-function", default="main", help="Main function name in the entry point (default: main)")
-    parser.add_argument("--banner", default="Obfuscated by PyLockWare Obfuscator", help="Banner text to add to modules")
-    parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
-    parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
-    parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
-    parser.add_argument("--string-prot", action="store_true", help="Enable string protection using base64 and zlib encoding")
-
-
-    args = parser.parse_args()
-
-    obfuscator = PyObfuscator(
-        project_path=args.project_path,
-        entry_point=args.entry_point,
-        entry_function=args.entry_function,
-        output_dir=args.output_dir,
-        remap=args.remap,
-        anti_debug=args.anti_debug,
-        string_prot=args.string_prot,
-    )
-
-    obfuscator.run_obfuscation(args.banner)
-
-
-if __name__ == "__main__":
-    main()
