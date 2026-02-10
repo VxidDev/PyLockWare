@@ -87,19 +87,33 @@ def obfuscate_number(n: int) -> str:
     return expr
 
 
-class NumberObfuscator(ast.NodeTransformer):
-    """AST transformer to obfuscate integer literals in Python code."""
+def obfuscate_float(n: float) -> str:
+    """
+    Обфусцирует float значение путем преобразования его в строку,
+    а затем в выражение, которое воссоздает это значение.
+    """
+    s = str(n)
+    # Преобразуем строку в список ASCII кодов
+    ascii_codes = [ord(c) for c in s]
     
+    # Создаем выражение, которое воссоздаст строку и преобразует её в float
+    codes_str = ', '.join(map(str, ascii_codes))
+    return f"float(''.join(chr(x) for x in [{codes_str}]))"
+
+
+class NumberObfuscator(ast.NodeTransformer):
+    """AST transformer to obfuscate integer and float literals in Python code."""
+
     def __init__(self):
         self.number_counter = 0
-    
+
     def visit_Constant(self, node):
         """Handle numeric constants in newer Python versions."""
-        
+
         if isinstance(node.value, int) and not isinstance(node.value, bool):
             # Obfuscate the number regardless of size
             obfuscated_expr = obfuscate_number(node.value)
-            
+
             # Parse the obfuscated expression back to an AST node
             try:
                 obfuscated_node = ast.parse(obfuscated_expr, mode='eval').body
@@ -108,15 +122,27 @@ class NumberObfuscator(ast.NodeTransformer):
                 # If parsing fails, return the original node
                 return node
         
+        elif isinstance(node.value, float):
+            # Obfuscate the float value
+            obfuscated_expr = obfuscate_float(node.value)
+
+            # Parse the obfuscated expression back to an AST node
+            try:
+                obfuscated_node = ast.parse(obfuscated_expr, mode='eval').body
+                return obfuscated_node
+            except:
+                # If parsing fails, return the original node
+                return node
+
         return node
 
     def visit_Num(self, node):
         """Handle numeric literals in older Python versions."""
-        
+
         if isinstance(node.n, int):
             # Obfuscate the number regardless of size
             obfuscated_expr = obfuscate_number(node.n)
-            
+
             # Parse the obfuscated expression back to an AST node
             try:
                 obfuscated_node = ast.parse(obfuscated_expr, mode='eval').body
@@ -124,5 +150,17 @@ class NumberObfuscator(ast.NodeTransformer):
             except:
                 # If parsing fails, return the original node
                 return node
-        
+                
+        elif isinstance(node.n, float):
+            # Obfuscate the float value
+            obfuscated_expr = obfuscate_float(node.n)
+
+            # Parse the obfuscated expression back to an AST node
+            try:
+                obfuscated_node = ast.parse(obfuscated_expr, mode='eval').body
+                return obfuscated_node
+            except:
+                # If parsing fails, return the original node
+                return node
+
         return node
