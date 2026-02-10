@@ -2,4 +2,20 @@
 PyLockWare - Python Obfuscation Suite
 A comprehensive tool for obfuscating Python code with multiple protection layers.
 """
-__version__ = "1.0.0"
+from .core import ModuleBase, PyObfuscator
+from .modules import (
+    RemapModule,
+    StringProtectModule,
+    NumberObfModule,
+    AntiDebugModule
+)
+
+__version__ = "2.0.0"
+__all__ = [
+    'ModuleBase',
+    'PyObfuscator',
+    'RemapModule',
+    'StringProtectModule',
+    'NumberObfModule',
+    'AntiDebugModule'
+]
