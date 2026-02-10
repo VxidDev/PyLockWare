@@ -45,6 +45,8 @@ def main():
         print(f"Class1 method: {obj1.method1()}")
         print(f"Function1: {function1()}")
         print(f"Constant1: {CONSTANT1}")
+        print(1488)
+        print(3.14)
 
         # Use nested package imports
         obj2 = Class2()

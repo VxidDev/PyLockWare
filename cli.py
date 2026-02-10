@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
     parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
     parser.add_argument("--string-prot", action="store_true", help="Enable string protection using base64 and zlib encoding")
+    parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
 
     args = parser.parse_args()
 
@@ -35,6 +36,7 @@ def main():
         remap=args.remap,
         anti_debug=args.anti_debug,
         string_prot=args.string_prot,
+        num_obf=args.num_obf,
     )
 
     obfuscator.run_obfuscation(args.banner)

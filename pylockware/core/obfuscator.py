@@ -14,6 +14,7 @@ from typing import Set, List, Dict, Any
 
 from pylockware.transforms.remap_transformer import GlobalRenamer
 from pylockware.transforms.str_prot import StringProtectionTransformer
+from pylockware.transforms.num_obf import NumberObfuscator
 
 
 
@@ -22,7 +23,7 @@ class PyObfuscator:
     A simple Python obfuscator base class
     """
 
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None, string_prot: bool = False):
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
@@ -30,6 +31,7 @@ class PyObfuscator:
         self.remap = remap
         self.anti_debug = anti_debug  # Can be None, 'normal', or 'strict'
         self.string_prot = string_prot  # Enable string protection
+        self.num_obf = num_obf  # Enable number obfuscation
         self.imports_whitelist = set()
         self.modules_to_obfuscate = []
         self.remap_map = {}  # Store mapping of original names to obfuscated names
@@ -317,10 +319,10 @@ class PyObfuscator:
         Apply string protection to all Python files in the output directory
         """
         print("Applying string protection to all Python files...")
-        
+
         # Create an instance of the string protection transformer
         protector = StringProtectionTransformer()
-        
+
         # Find all Python files in the output directory
         for py_file in self.output_dir.rglob("*.py"):
             # Skip anti-debug modules and the obfuscator script itself
@@ -328,21 +330,62 @@ class PyObfuscator:
                 try:
                     with open(py_file, 'r', encoding='utf-8') as f:
                         original_code = f.read()
-                    
+
                     # Apply string protection
                     protected_code = protector.apply_protection(original_code)
-                    
+
                     # Only write if changes were made
                     if protected_code != original_code:
                         with open(py_file, 'w', encoding='utf-8') as f:
                             f.write(protected_code)
-                        
+
                         # Count protected strings by counting _protected_str_ occurrences
                         protected_count = protected_code.count("_protected_str_")
                         print(f"Protected {protected_count} strings in {py_file}")
-                
+
                 except Exception as e:
                     print(f"Error applying string protection to {py_file}: {e}")
+
+    def apply_number_obfuscation(self):
+        """
+        Apply number obfuscation to all Python files in the output directory
+        """
+        print("Applying number obfuscation to all Python files...")
+
+        # Create an instance of the number obfuscator
+        obfuscator = NumberObfuscator()
+
+        # Find all Python files in the output directory
+        for py_file in self.output_dir.rglob("*.py"):
+            # Skip anti-debug modules and the obfuscator script itself
+            if py_file.name not in ["anti_debug_injector.py", "anti_debug_injector_normal.py", "obfuscator.py", "num_obf.py"]:
+                try:
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        original_code = f.read()
+
+                    # Parse the code to AST
+                    tree = ast.parse(original_code)
+
+                    # Apply number obfuscation
+                    obfuscated_tree = obfuscator.visit(tree)
+                    
+                    # Fix missing locations
+                    ast.fix_missing_locations(obfuscated_tree)
+
+                    # Convert back to source code
+                    obfuscated_code = ast.unparse(obfuscated_tree)
+
+                    # Only write if changes were made
+                    if obfuscated_code != original_code:
+                        with open(py_file, 'w', encoding='utf-8') as f:
+                            f.write(obfuscated_code)
+
+                        # Count obfuscated numbers by counting parentheses (rough estimate)
+                        obfuscated_count = obfuscated_code.count('(') - original_code.count('(')
+                        print(f"Obfuscated numbers in {py_file} (est. {obfuscated_count} changes)")
+
+                except Exception as e:
+                    print(f"Error applying number obfuscation to {py_file}: {e}")
 
     def remap_code_in_file(self, file_path: Path):
         """
@@ -511,6 +554,10 @@ except ImportError:
         # This adds helper functions and protected string variables to the code
         if self.string_prot:
             self.apply_string_protection()
+            
+        # Apply number obfuscation AFTER string protection but before remapping (if enabled)
+        if self.num_obf:
+            self.apply_number_obfuscation()
 
         # Build global replacements AFTER applying string protection
         # This captures ALL identifiers in the code, including those added by string protection
@@ -530,7 +577,7 @@ except ImportError:
                 protection_module_path = self.output_dir / "anti_debug_injector_normal.py"
                 # Get the path to the anti_debug_injector_normal module
                 import os
-                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector_normal.py')
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'pylockware', 'anti_debug', 'anti_debug_injector_normal.py')
                 module_path = os.path.abspath(module_path)
                 shutil.copy(module_path, protection_module_path)
             elif self.anti_debug == 'strict' or self.anti_debug is True:
@@ -538,7 +585,7 @@ except ImportError:
                 protection_module_path = self.output_dir / "anti_debug_injector.py"
                 # Get the path to the anti_debug_injector module
                 import os
-                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector.py')
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'pylockware', 'anti_debug', 'anti_debug_injector.py')
                 module_path = os.path.abspath(module_path)
                 shutil.copy(module_path, protection_module_path)
             else:
@@ -546,7 +593,7 @@ except ImportError:
                 protection_module_path = self.output_dir / "anti_debug_injector.py"
                 # Get the path to the anti_debug_injector module
                 import os
-                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'anti_debug', 'anti_debug_injector.py')
+                module_path = os.path.join(os.path.dirname(__file__), '..', '..', 'pylockware', 'anti_debug', 'anti_debug_injector.py')
                 module_path = os.path.abspath(module_path)
                 shutil.copy(module_path, protection_module_path)
 

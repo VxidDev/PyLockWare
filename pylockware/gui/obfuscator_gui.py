@@ -65,7 +65,11 @@ class ObfuscatorGUI(QMainWindow):
         # Obfuscation Settings Tab
         self.obfuscation_tab = self.create_obfuscation_tab()
         self.tab_widget.addTab(self.obfuscation_tab, "Obfuscation")
-        
+
+        # Control Flow Obfuscation Tab
+        self.control_flow_tab = self.create_control_flow_tab()
+        self.tab_widget.addTab(self.control_flow_tab, "Control Flow Obf")
+
         # Runtime Protection Tab
         self.protection_tab = self.create_protection_tab()
         self.tab_widget.addTab(self.protection_tab, "Runtime Protection")
@@ -192,7 +196,26 @@ class ObfuscatorGUI(QMainWindow):
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
         return tab
-    
+
+    def create_control_flow_tab(self):
+        """Create the control flow obfuscation tab"""
+        tab = QWidget()
+        layout = QVBoxLayout()
+
+        # Number obfuscation option
+        self.num_obf_checkbox = QCheckBox("Enable number obfuscation using arithmetic expressions")
+        layout.addWidget(self.num_obf_checkbox)
+
+        # Description for number obfuscation
+        num_obf_desc = QLabel("Number obfuscation replaces numeric literals with equivalent arithmetic expressions,\nmaking it harder to understand the meaning of numeric values in your code.")
+        num_obf_desc.setWordWrap(True)
+        num_obf_desc.setStyleSheet("color: gray;")
+        layout.addWidget(num_obf_desc)
+
+        layout.addStretch()  # Add space to push content to the top
+        tab.setLayout(layout)
+        return tab
+
     def create_additional_tab(self):
         """Create the additional settings tab"""
         tab = QWidget()
@@ -246,6 +269,7 @@ class ObfuscatorGUI(QMainWindow):
             'output_dir': self.output_dir_edit.text().strip(),
             'remap': self.remap_checkbox.isChecked(),
             'string_prot': self.string_prot_checkbox.isChecked(),
+            'num_obf': self.num_obf_checkbox.isChecked(),
         }
 
         # Set anti-debug option
