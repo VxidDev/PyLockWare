@@ -6,10 +6,12 @@ from .remap_module import RemapModule
 from .string_protect_module import StringProtectModule
 from .number_obf_module import NumberObfModule
 from .anti_debug_module import AntiDebugModule
+from .import_obf_module import ImportObfuscateModule
 
 __all__ = [
     'RemapModule', 
     'StringProtectModule', 
     'NumberObfModule', 
-    'AntiDebugModule'
+    'AntiDebugModule',
+    'ImportObfuscateModule'
 ]

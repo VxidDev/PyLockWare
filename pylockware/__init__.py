@@ -7,7 +7,8 @@ from .modules import (
     RemapModule,
     StringProtectModule,
     NumberObfModule,
-    AntiDebugModule
+    AntiDebugModule,
+    ImportObfuscateModule
 )
 
 __version__ = "2.0.0"
@@ -17,5 +18,6 @@ __all__ = [
     'RemapModule',
     'StringProtectModule',
     'NumberObfModule',
-    'AntiDebugModule'
+    'AntiDebugModule',
+    'ImportObfuscateModule'
 ]

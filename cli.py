@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
     parser.add_argument("--string-prot", action="store_true", help="Enable string protection using base64 and zlib encoding")
     parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
+    parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
 
     args = parser.parse_args()
 
@@ -37,6 +38,7 @@ def main():
         anti_debug=args.anti_debug,
         string_prot=args.string_prot,
         num_obf=args.num_obf,
+        import_obf=args.import_obf,
     )
 
     obfuscator.run_obfuscation(args.banner)

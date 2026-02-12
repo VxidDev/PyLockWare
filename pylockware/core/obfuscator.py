@@ -17,6 +17,7 @@ from pylockware.modules.remap_module import RemapModule
 from pylockware.modules.string_protect_module import StringProtectModule
 from pylockware.modules.number_obf_module import NumberObfModule
 from pylockware.modules.anti_debug_module import AntiDebugModule
+from pylockware.modules.import_obf_module import ImportObfuscateModule
 
 
 class PyObfuscator:
@@ -25,7 +26,8 @@ class PyObfuscator:
     """
 
     def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", 
-                 remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False):
+                 remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False, 
+                 import_obf: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
@@ -34,6 +36,7 @@ class PyObfuscator:
         self.anti_debug = anti_debug  # Can be None, 'normal', or 'strict'
         self.string_prot = string_prot  # Enable string protection
         self.num_obf = num_obf  # Enable number obfuscation
+        self.import_obf = import_obf  # Enable import obfuscation
         
         # Initialize module manager
         self.module_manager = ModuleManager()
@@ -45,7 +48,7 @@ class PyObfuscator:
         """
         # Set project paths in the module manager
         self.module_manager.set_project_paths(self.project_path, self.output_dir)
-        
+
         # Add modules based on configuration
         if self.string_prot:
             string_prot_config = {}
@@ -59,6 +62,11 @@ class PyObfuscator:
             remap_config = {'entry_function': self.entry_function}
             self.module_manager.add_module(RemapModule(remap_config))
             
+        # Import obfuscation should happen AFTER remapping to capture remapped names
+        if self.import_obf:
+            import_obf_config = {}
+            self.module_manager.add_module(ImportObfuscateModule(import_obf_config))
+
         if self.anti_debug:
             anti_debug_config = {
                 'mode': self.anti_debug,
@@ -88,7 +96,7 @@ class PyObfuscator:
         print(f"Starting obfuscation of project: {self.project_path}")
         print(f"Entry point: {self.entry_point}")
         print(f"Entry function: {self.entry_function}")
-        print(f"Modules enabled: remap={self.remap}, anti_debug={self.anti_debug}, string_prot={self.string_prot}, num_obf={self.num_obf}")
+        print(f"Modules enabled: remap={self.remap}, anti_debug={self.anti_debug}, string_prot={self.string_prot}, num_obf={self.num_obf}, import_obf={self.import_obf}")
 
         # Validate paths
         self.validate_paths()

@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont
 
 from pylockware.core.obfuscator import PyObfuscator
+from pylockware.modules.import_obf_module import ImportObfuscateModule
 
 
 class ObfuscatorWorker(QThread):
@@ -212,6 +213,16 @@ class ObfuscatorGUI(QMainWindow):
         num_obf_desc.setStyleSheet("color: gray;")
         layout.addWidget(num_obf_desc)
 
+        # Import obfuscation option
+        self.import_obf_checkbox = QCheckBox("Enable import obfuscation using dynamic execution techniques")
+        layout.addWidget(self.import_obf_checkbox)
+
+        # Description for import obfuscation
+        import_obf_desc = QLabel("Import obfuscation hides import statements using dynamic execution methods\nlike __import__() and exec(), making dependencies harder to identify.")
+        import_obf_desc.setWordWrap(True)
+        import_obf_desc.setStyleSheet("color: gray;")
+        layout.addWidget(import_obf_desc)
+
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
         return tab
@@ -270,6 +281,7 @@ class ObfuscatorGUI(QMainWindow):
             'remap': self.remap_checkbox.isChecked(),
             'string_prot': self.string_prot_checkbox.isChecked(),
             'num_obf': self.num_obf_checkbox.isChecked(),
+            'import_obf': self.import_obf_checkbox.isChecked(),
         }
 
         # Set anti-debug option
