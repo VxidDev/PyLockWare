@@ -8,6 +8,7 @@ import string
 from pathlib import Path
 from typing import Dict, Any
 from pylockware.core.module_base import ModuleBase
+from pylockware.core.name_generator import generate_random_name
 
 
 class ImportObfuscateModule(ModuleBase):
@@ -17,6 +18,7 @@ class ImportObfuscateModule(ModuleBase):
     
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
+        self.name_gen_settings = self.config.get('name_gen', 'english')
         
     def process(self, project_path: Path, output_path: Path) -> bool:
         """
@@ -113,6 +115,6 @@ class ImportObfuscateModule(ModuleBase):
         """
         Generate a random variable name
         """
-        length = random.randint(8, 15)
-        letters = string.ascii_lowercase + string.digits
-        return '_' + ''.join(random.choice(letters) for _ in range(length))
+        # Using a fixed length of 12 (average of 8 and 15) since we removed length parameter
+        from pylockware.core.name_generator import generate_random_name
+        return generate_random_name("_", self.name_gen_settings)

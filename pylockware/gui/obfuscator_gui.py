@@ -249,12 +249,34 @@ class ObfuscatorGUI(QMainWindow):
         banner_layout.addWidget(banner_label)
         banner_layout.addWidget(self.banner_edit)
         layout.addLayout(banner_layout)
-        
+
         # Description for banner
         banner_desc = QLabel("The banner text will be added to the beginning of each obfuscated Python file.")
         banner_desc.setWordWrap(True)
         banner_desc.setStyleSheet("color: gray;")
         layout.addWidget(banner_desc)
+
+        # Name generator settings
+        name_gen_layout = QHBoxLayout()
+        name_gen_label = QLabel("Name generator:")
+        self.name_gen_combo = QComboBox()
+        self.name_gen_combo.addItems([
+            "English letters and digits",
+            "Chinese characters",
+            "Mixed (English + Chinese)",
+            "Numbers only",
+            "Hexadecimal"
+        ])
+        self.name_gen_combo.setCurrentIndex(0)  # Default to English
+        name_gen_layout.addWidget(name_gen_label)
+        name_gen_layout.addWidget(self.name_gen_combo)
+        layout.addLayout(name_gen_layout)
+
+        # Description for name generator
+        name_gen_desc = QLabel("Character set used for generating random names during obfuscation.")
+        name_gen_desc.setWordWrap(True)
+        name_gen_desc.setStyleSheet("color: gray;")
+        layout.addWidget(name_gen_desc)
         
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
@@ -293,6 +315,7 @@ class ObfuscatorGUI(QMainWindow):
             'num_obf': self.num_obf_checkbox.isChecked(),
             'import_obf': self.import_obf_checkbox.isChecked(),
             'state_machine': self.state_machine_checkbox.isChecked(),
+            'name_gen': self._get_name_gen_setting(),
         }
 
         # Set anti-debug option
@@ -334,6 +357,12 @@ class ObfuscatorGUI(QMainWindow):
         
         # Clean up the worker
         self.worker = None
+
+    def _get_name_gen_setting(self):
+        """Get the selected name generator setting from the combo box."""
+        index = self.name_gen_combo.currentIndex()
+        name_gen_options = ['english', 'chinese', 'mixed', 'numbers', 'hex']
+        return name_gen_options[index] if 0 <= index < len(name_gen_options) else 'english'
 
 
 def main():

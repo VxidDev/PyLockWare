@@ -16,6 +16,7 @@ class NumberObfModule(ModuleBase):
     
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
+        self.name_gen_settings = self.config.get('name_gen', 'english')
         
     def process(self, project_path: Path, output_path: Path) -> bool:
         """

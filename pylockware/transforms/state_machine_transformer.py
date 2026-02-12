@@ -5,20 +5,27 @@ Transforms functions into state machines to obfuscate control flow
 import ast
 import random
 import string
+from pylockware.core.name_generator import generate_random_name
 
 
 class StateMachineTransformer(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self, name_gen_settings='english'):
         self.func_counter = 0
         self.state_var = None
         self.final_state = None
+        self.name_gen_settings = name_gen_settings
 
     # -----------------------------
     # Utility
     # -----------------------------
 
     def _rand(self, prefix="_s"):
-        return f"{prefix}_{''.join(random.choices(string.ascii_letters, k=6))}"
+        # Generate a random name with the specified prefix (or default "_s_") and the character set settings
+        if prefix:
+            return generate_random_name(prefix + "_", self.name_gen_settings)
+        else:
+            # Generate a random name without a specific prefix but still with underscore
+            return generate_random_name("_", self.name_gen_settings)
 
     def _contains_async(self, node):
         return any(isinstance(n, ast.AsyncFunctionDef) for n in ast.walk(node))
@@ -54,8 +61,9 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         self.func_counter += 1
         old_state = self.state_var
-        self.state_var = self._rand("_state")
-        ret_var = self._rand("_ret")
+        # Use the name generator settings to create state and return variables without specific prefixes
+        self.state_var = self._rand("")
+        ret_var = self._rand("")
 
         is_generator = any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(node))
 

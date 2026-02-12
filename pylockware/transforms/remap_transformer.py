@@ -3,6 +3,7 @@ AST Transformer for remapping identifiers in Python code
 """
 import ast
 import builtins
+from pylockware.core.name_generator import NameGenerator
 
 
 class GlobalRenamer(ast.NodeTransformer):
@@ -105,6 +106,13 @@ class GlobalRenamer(ast.NodeTransformer):
             node.attr = self.global_replacements[node.attr]
         # Visit the value part (the object whose attribute we're accessing)
         self.generic_visit(node)
+        return node
+
+    def visit_Global(self, node):
+        # Rename global declarations
+        for i, name in enumerate(node.names):
+            if name in self.global_replacements:
+                node.names[i] = self.global_replacements[name]
         return node
 
     def visit_Name(self, node):

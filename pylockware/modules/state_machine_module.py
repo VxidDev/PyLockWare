@@ -15,6 +15,7 @@ class StateMachineModule(ModuleBase):
 
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
+        self.name_gen_settings = self.config.get('name_gen', 'english')
 
     def process(self, project_path: Path, output_path: Path) -> bool:
         """
@@ -30,8 +31,8 @@ class StateMachineModule(ModuleBase):
         try:
             print("Applying state machine transformation to all Python files...")
 
-            # Create an instance of the state machine transformer
-            transformer = StateMachineTransformer()
+            # Create an instance of the state machine transformer with name generator settings
+            transformer = StateMachineTransformer(name_gen_settings=self.name_gen_settings)
 
             # Find all Python files in the output directory
             for py_file in output_path.rglob("*.py"):
