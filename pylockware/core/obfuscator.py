@@ -49,23 +49,27 @@ class PyObfuscator:
         # Set project paths in the module manager
         self.module_manager.set_project_paths(self.project_path, self.output_dir)
 
+        if self.remap:
+            remap_config = {'entry_function': self.entry_function}
+            self.module_manager.add_module(RemapModule(remap_config))
+
         # Add modules based on configuration
         if self.string_prot:
             string_prot_config = {}
             self.module_manager.add_module(StringProtectModule(string_prot_config))
-            
-        if self.num_obf:
-            num_obf_config = {}
-            self.module_manager.add_module(NumberObfModule(num_obf_config))
-            
-        if self.remap:
-            remap_config = {'entry_function': self.entry_function}
-            self.module_manager.add_module(RemapModule(remap_config))
-            
+
         # Import obfuscation should happen AFTER remapping to capture remapped names
         if self.import_obf:
             import_obf_config = {}
             self.module_manager.add_module(ImportObfuscateModule(import_obf_config))
+
+        if self.num_obf:
+            num_obf_config = {}
+            self.module_manager.add_module(NumberObfModule(num_obf_config))
+            
+
+            
+
 
         if self.anti_debug:
             anti_debug_config = {
