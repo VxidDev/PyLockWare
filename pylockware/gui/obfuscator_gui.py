@@ -223,6 +223,16 @@ class ObfuscatorGUI(QMainWindow):
         import_obf_desc.setStyleSheet("color: gray;")
         layout.addWidget(import_obf_desc)
 
+        # State machine obfuscation option
+        self.state_machine_checkbox = QCheckBox("Enable state machine obfuscation to transform functions into state machines")
+        layout.addWidget(self.state_machine_checkbox)
+
+        # Description for state machine obfuscation
+        state_machine_desc = QLabel("State machine obfuscation transforms functions into state machines,\nmaking control flow harder to analyze and understand.")
+        state_machine_desc.setWordWrap(True)
+        state_machine_desc.setStyleSheet("color: gray;")
+        layout.addWidget(state_machine_desc)
+
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
         return tab
@@ -282,6 +292,7 @@ class ObfuscatorGUI(QMainWindow):
             'string_prot': self.string_prot_checkbox.isChecked(),
             'num_obf': self.num_obf_checkbox.isChecked(),
             'import_obf': self.import_obf_checkbox.isChecked(),
+            'state_machine': self.state_machine_checkbox.isChecked(),
         }
 
         # Set anti-debug option

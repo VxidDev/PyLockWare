@@ -18,6 +18,7 @@ from pylockware.modules.string_protect_module import StringProtectModule
 from pylockware.modules.number_obf_module import NumberObfModule
 from pylockware.modules.anti_debug_module import AntiDebugModule
 from pylockware.modules.import_obf_module import ImportObfuscateModule
+from pylockware.modules.state_machine_module import StateMachineModule
 
 
 class PyObfuscator:
@@ -25,9 +26,9 @@ class PyObfuscator:
     A Python obfuscator using the new modular system
     """
 
-    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist", 
-                 remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False, 
-                 import_obf: bool = False):
+    def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist",
+                 remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False,
+                 import_obf: bool = False, state_machine: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
@@ -37,6 +38,7 @@ class PyObfuscator:
         self.string_prot = string_prot  # Enable string protection
         self.num_obf = num_obf  # Enable number obfuscation
         self.import_obf = import_obf  # Enable import obfuscation
+        self.state_machine = state_machine  # Enable state machine obfuscation
         
         # Initialize module manager
         self.module_manager = ModuleManager()
@@ -77,6 +79,10 @@ class PyObfuscator:
                 'entry_point': str(self.entry_point)
             }
             self.module_manager.add_module(AntiDebugModule(anti_debug_config))
+
+        if self.state_machine:
+            state_machine_config = {}
+            self.module_manager.add_module(StateMachineModule(state_machine_config))
     
     def validate_paths(self):
         """
@@ -100,7 +106,7 @@ class PyObfuscator:
         print(f"Starting obfuscation of project: {self.project_path}")
         print(f"Entry point: {self.entry_point}")
         print(f"Entry function: {self.entry_function}")
-        print(f"Modules enabled: remap={self.remap}, anti_debug={self.anti_debug}, string_prot={self.string_prot}, num_obf={self.num_obf}, import_obf={self.import_obf}")
+        print(f"Modules enabled: remap={self.remap}, anti_debug={self.anti_debug}, string_prot={self.string_prot}, num_obf={self.num_obf}, import_obf={self.import_obf}, state_machine={self.state_machine}")
 
         # Validate paths
         self.validate_paths()

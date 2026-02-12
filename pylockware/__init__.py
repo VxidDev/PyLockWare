@@ -8,7 +8,8 @@ from .modules import (
     StringProtectModule,
     NumberObfModule,
     AntiDebugModule,
-    ImportObfuscateModule
+    ImportObfuscateModule,
+    StateMachineModule
 )
 
 __version__ = "2.0.0"
@@ -19,5 +20,6 @@ __all__ = [
     'StringProtectModule',
     'NumberObfModule',
     'AntiDebugModule',
-    'ImportObfuscateModule'
+    'ImportObfuscateModule',
+    'StateMachineModule'
 ]

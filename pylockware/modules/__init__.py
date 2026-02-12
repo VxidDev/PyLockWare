@@ -7,11 +7,13 @@ from .string_protect_module import StringProtectModule
 from .number_obf_module import NumberObfModule
 from .anti_debug_module import AntiDebugModule
 from .import_obf_module import ImportObfuscateModule
+from .state_machine_module import StateMachineModule
 
 __all__ = [
-    'RemapModule', 
-    'StringProtectModule', 
-    'NumberObfModule', 
+    'RemapModule',
+    'StringProtectModule',
+    'NumberObfModule',
     'AntiDebugModule',
-    'ImportObfuscateModule'
+    'ImportObfuscateModule',
+    'StateMachineModule'
 ]
