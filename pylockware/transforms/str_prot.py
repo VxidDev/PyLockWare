@@ -3,15 +3,17 @@ import base64
 import zlib
 import random
 import string
+from pylockware.core.name_generator import generate_random_name
 
 
 class StringProtectionTransformer(ast.NodeTransformer):
     """AST transformer to protect string literals using base64 and zlib."""
 
-    def __init__(self):
+    def __init__(self, name_gen_settings='english'):
         self.string_counter = 0
         self.protected_strings = {}
-        
+        self.name_gen_settings = name_gen_settings
+
         # Generate completely random names for helper functions
         self.decode_func_name = self._generate_random_name()
         self.fstring_func_name = self._generate_random_name()
@@ -20,12 +22,11 @@ class StringProtectionTransformer(ast.NodeTransformer):
     
     def _generate_random_name(self, prefix=None):
         """Generate a random name. If prefix is provided, use it; otherwise generate completely random name."""
-        suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         if prefix:
-            return f"_{prefix}_{suffix}"
+            return generate_random_name(f"_{prefix}_", self.name_gen_settings)
         else:
             # Generate completely random name without recognizable pattern
-            return f"_{suffix}"
+            return generate_random_name("_", self.name_gen_settings)
 
     def visit_Str(self, node):
         """Handle string literals in older Python versions."""
@@ -196,7 +197,8 @@ class StringProtectionTransformer(ast.NodeTransformer):
 
             # Transform the tree
 
-            transformer = StringProtectionTransformer()
+            # Use the same name generator settings as the current instance
+            transformer = StringProtectionTransformer(name_gen_settings=getattr(self, 'name_gen_settings', 'english'))
 
             protected_tree = transformer.visit(tree)
 

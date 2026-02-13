@@ -8,6 +8,8 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **String Protection**: Encodes string literals using base64 and zlib compression to prevent easy extraction
 - **Number Obfuscation**: Transforms numeric constants into complex arithmetic expressions
 - **Import Obfuscation**: Hides import statements using dynamic execution techniques
+- **State Machine Obfuscation**: Transforms functions into state machines to obfuscate control flow
+- **Configurable Name Generators**: Customizable character sets for generated obfuscated names (English, Chinese, mixed, numbers, hex)
 - **Anti-Debug Protection**: Implements sophisticated anti-debugging and anti-injection mechanisms
   - Normal mode: Basic protection against common debugging tools
   - Strict mode: Enhanced protection with thread monitoring
@@ -27,7 +29,7 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/PyLockWare.git
+   git clone https://github.com/amogus-gggy/PyLockWare.git
    cd PyLockWare
    ```
 
@@ -55,6 +57,8 @@ python gui.py
 The GUI provides:
 - Project path selection
 - Configuration options for each obfuscation technique
+- State machine obfuscation to transform functions into state machines
+- Configurable name generators with multiple character sets (English, Chinese, mixed, numbers, hex)
 - Real-time preview of settings
 - One-click obfuscation process
 
@@ -79,6 +83,8 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 | `--string-prot` | Enable string protection using base64 and zlib encoding |
 | `--num-obf` | Enable number obfuscation using arithmetic expressions |
 | `--import-obf` | Enable import obfuscation using dynamic execution techniques |
+| `--state-machine` | Enable state machine obfuscation to transform functions into state machines |
+| `--name-gen {english,chinese,mixed,numbers,hex}` | Character set for name generation (default: english) |
 
 #### Example Usage
 
@@ -127,22 +133,18 @@ Implements runtime checks to detect and prevent debugging attempts, with two mod
 - **Normal**: Basic detection of common debugging tools
 - **Strict**: Enhanced detection including thread monitoring
 
-## 📁 Project Structure
+### State Machine Obfuscation
+Transforms functions into state machines to obfuscate control flow, making it significantly harder to analyze and understand the program's logic by converting sequential code into a series of state transitions.
 
-```
-pylockware/
-├── core/                 # Core obfuscator logic
-│   └── obfuscator.py     # Main obfuscator class
-├── modules/              # Individual obfuscation modules
-│   ├── remap_module.py          # Identifier remapping
-│   ├── string_protect_module.py # String protection
-│   ├── number_obf_module.py     # Number obfuscation
-│   ├── import_obf_module.py     # Import obfuscation
-│   └── anti_debug_module.py     # Anti-debug protection
-├── gui/                  # Graphical user interface
-│   └── obfuscator_gui.py # GUI implementation
-└── cli/                  # Command-line interface
-```
+### Configurable Name Generators
+Provides customizable character sets for generating obfuscated names, including:
+- **English**: Standard Latin letters and digits
+- **Chinese**: Chinese Unicode characters
+- **Mixed**: Combination of English and Chinese characters
+- **Numbers**: Numeric digits only
+- **Hex**: Hexadecimal characters (0-9, A-F)
+
+
 
 ## 🧪 Testing Your Obfuscated Code
 

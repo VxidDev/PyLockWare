@@ -26,6 +26,9 @@ def main():
     parser.add_argument("--string-prot", action="store_true", help="Enable string protection using base64 and zlib encoding")
     parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
     parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
+    parser.add_argument("--state-machine", action="store_true", help="Enable state machine obfuscation to transform functions into state machines")
+    parser.add_argument("--name-gen", choices=['english', 'chinese', 'mixed', 'numbers', 'hex'], 
+                       default='english', help="Character set for name generation (default: english)")
 
     args = parser.parse_args()
 
@@ -39,6 +42,8 @@ def main():
         string_prot=args.string_prot,
         num_obf=args.num_obf,
         import_obf=args.import_obf,
+        state_machine=args.state_machine,
+        name_gen=args.name_gen,
     )
 
     obfuscator.run_obfuscation(args.banner)
