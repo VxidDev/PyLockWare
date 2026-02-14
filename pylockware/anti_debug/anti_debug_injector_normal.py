@@ -5,6 +5,7 @@ Based on the strict version but without thread checking
 
 import os
 import sys
+import platform
 import threading
 import time
 import psutil
@@ -145,9 +146,9 @@ class NormalInjectionDetector:
 
     def trigger_protection(self, reason):
         """Trigger protection response"""
-        print(f"[PROTECTION] Threat detected: {reason}")
-        # Optionally terminate the program
-        os._exit(1)
+        # Hard crash without any console output
+        while True:
+            os._exit(1)
 
     def start_monitoring(self):
         """Start protection in a separate thread"""
@@ -162,6 +163,12 @@ protection_instance = None
 def enable_protection():
     """Enable anti-debug protection"""
     global protection_instance
+
+    # Check if running on Windows AMD64
+    if not (sys.platform == 'win32' and platform.machine().lower() in ['amd64', 'x86_64']):
+        # Not running on Windows AMD64, skip protection
+        return
+
     if protection_instance is None:
         protection_instance = NormalInjectionDetector()
         protection_instance.start_monitoring()

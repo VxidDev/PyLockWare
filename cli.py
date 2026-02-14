@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--banner", default="Obfuscated by PyLockWare Obfuscator", help="Banner text to add to modules")
     parser.add_argument("--output-dir", default="dist", help="Output directory for obfuscated project (default: dist)")
     parser.add_argument("--remap", action="store_true", help="Enable renaming of functions, variables, etc. to random names")
-    parser.add_argument("--anti-debug", choices=['normal', 'strict'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking)")
+    parser.add_argument("--anti-debug", choices=['normal', 'strict', 'native'], help="Enable anti-debug and anti-injection protection ('normal' without thread checking, 'strict' with thread checking, 'native' for native implementation)")
     parser.add_argument("--string-prot", action="store_true", help="Enable string protection using base64 and zlib encoding")
     parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
     parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
@@ -31,6 +31,13 @@ def main():
                        default='english', help="Character set for name generation (default: english)")
 
     args = parser.parse_args()
+
+    # Check if anti-debug is requested but platform is not Windows AMD64
+    import platform
+    import sys
+    if args.anti_debug and not (sys.platform == 'win32' and platform.machine().lower() in ['amd64', 'x86_64']):
+        print("Warning: Anti-debug protection is only available for Windows AMD64. Option will be ignored.")
+        args.anti_debug = None
 
     obfuscator = PyObfuscator(
         project_path=args.project_path,
