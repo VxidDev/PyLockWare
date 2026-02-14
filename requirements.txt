@@ -1,5 +1,5 @@
 psutil~=7.2.2
-pywin32~=311
+pywin32==311
 PySide6~=6.10.2
 #for example pyside6 project
 pyside6-fluent-widgets

@@ -1,3 +1,5 @@
 {
-  "TestFramework": "Pytest"
+  "TestFramework": "Pytest",
+  "Interpreter": "Workspace|Workspace|.venv",
+  "SuppressConfigureTestFrameworkPrompt": "true"
 }

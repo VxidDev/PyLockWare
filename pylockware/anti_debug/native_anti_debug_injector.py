@@ -8,6 +8,7 @@ import sys
 import platform
 import threading
 import time
+import psutil
 from pathlib import Path
 
 
@@ -84,13 +85,30 @@ class NativeAntiDebug:
         """
         Main protection loop - runs in a separate thread
         """
-        if not self.start_module_monitor():
-
-            return
+        # Start the native module monitor if DLL is available
+        if self.dll:
+            self.start_module_monitor()
 
         # Keep the protection running
         while self.running:
+            try:
+                # Check for debugger using Python methods
+                if self.detect_debugger():
+                    self.trigger_protection("Python-side debugger detected")
+                    break
+
+            except Exception:
+                # If we can't check due to permissions, that's suspicious too
+                self.trigger_protection("Protection mechanism compromised")
+                break
+
             time.sleep(1)  # Sleep for 1 second before next check
+
+    def trigger_protection(self, reason):
+        """Trigger protection response"""
+        # Hard crash without any console output
+        while True:
+            os._exit(1)
 
     def start_monitoring(self):
         """
@@ -112,6 +130,40 @@ class NativeAntiDebug:
         self.running = False
         if self.monitoring_thread:
             self.monitoring_thread.join(timeout=2)  # Wait up to 2 seconds for thread to finish
+
+    def detect_debugger(self):
+        """Detect if running under a debugger"""
+        # Check for trace function (common in debuggers)
+        if sys.gettrace() is not None:
+            return True
+
+        # Check for common debugger modules
+        debugger_modules = {'pdb', 'pydevd', 'debugpy', 'pydev', 'pydevd_plugins'}
+        for module in debugger_modules:
+            if module in sys.modules:
+                return True
+
+        # Check for specific debugger environment variables
+        if any(var for var in os.environ.keys() if 'DEBUG' in var.upper()):
+            return True
+
+        # Check for specific debugger-related globals
+        if '__debugger__' in globals():
+            return True
+
+        # Check for interactive mode
+        if hasattr(sys, 'ps1'):
+            return True
+
+        # Check for debugger-specific threads
+        current_threads = threading.enumerate()
+        debugger_thread_patterns = ['pydevd', 'debug', 'pdb']
+        for thread in current_threads:
+            thread_name = thread.name.lower()
+            if any(pattern in thread_name for pattern in debugger_thread_patterns):
+                return True
+
+        return False
 
 
 
