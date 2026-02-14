@@ -74,7 +74,18 @@ class StateMachineTransformer(ast.NodeTransformer):
             self.state_var = old_state
             return self.generic_visit(node)
 
-        self.final_state = len(blocks)
+        # Создаем перемешанные индексы состояний
+        original_indices = list(range(len(blocks)))
+        shuffled_indices = list(range(len(blocks)))
+        random.shuffle(shuffled_indices)
+        
+        # Создаем словарь соответствия: оригинальный индекс -> перемешанный индекс
+        self.block_to_state_map = dict(zip(original_indices, shuffled_indices))
+        
+        # Также создаем обратный словарь: перемешанный индекс -> оригинальный
+        self.state_to_block_map = dict(zip(shuffled_indices, original_indices))
+        
+        self.final_state = max(shuffled_indices) + 1  # Устанавливаем финальное состояние как максимальный индекс + 1
 
         # -----------------------------
         # Генерация state machine
@@ -82,11 +93,12 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         new_body = []
 
-        # __state = 0
+        # __state = перемешанный индекс первого блока
+        initial_state = self.block_to_state_map[0] if 0 in self.block_to_state_map else 0
         new_body.append(
             ast.Assign(
                 targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                value=ast.Constant(0),
+                value=ast.Constant(initial_state),
             )
         )
 
@@ -101,15 +113,18 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         cases = []
 
+        # Используем перемешанные индексы для генерации ветвлений
         for idx, block in enumerate(blocks):
-            case_body = self._process_block(block, idx, len(blocks), ret_var, is_generator)
+            # Получаем перемешанный индекс для этого блока
+            shuffled_state = self.block_to_state_map[idx]
+            case_body = self._process_block(block, idx, len(blocks), ret_var, is_generator, shuffled_state)
 
             cases.append(
                 ast.If(
                     test=ast.Compare(
                         left=ast.Name(id=self.state_var, ctx=ast.Load()),
                         ops=[ast.Eq()],
-                        comparators=[ast.Constant(idx)],
+                        comparators=[ast.Constant(shuffled_state)],
                     ),
                     body=case_body,
                     orelse=[],
@@ -171,7 +186,7 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         return blocks
 
-    def _process_block(self, block, idx, total_blocks, ret_var, is_generator):
+    def _process_block(self, block, idx, total_blocks, ret_var, is_generator, current_shuffled_state=None):
         """Обрабатывает блок"""
         case_body = []
 
@@ -197,11 +212,13 @@ class StateMachineTransformer(ast.NodeTransformer):
 
             elif isinstance(stmt, (ast.Yield, ast.YieldFrom)):
                 case_body.append(stmt)
-                if idx < total_blocks - 1:
+                next_idx = idx + 1
+                if next_idx < total_blocks:
+                    next_shuffled_state = self.block_to_state_map[next_idx]
                     case_body.append(
                         ast.Assign(
                             targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                            value=ast.Constant(idx + 1),
+                            value=ast.Constant(next_shuffled_state),
                         )
                     )
                     case_body.append(ast.Return(value=None))
@@ -222,13 +239,22 @@ class StateMachineTransformer(ast.NodeTransformer):
             else:
                 case_body.append(stmt)
 
-        # переход к следующему состоянию
-        if not any(isinstance(s, (ast.Return, ast.Yield, ast.YieldFrom)) for s in case_body):
-            if idx < total_blocks - 1:
+        # переход к следующему состоянию (только если в теле нет других переходов)
+        has_explicit_transition = any(
+            isinstance(s, ast.Assign) and 
+            isinstance(s.targets[0], ast.Name) and 
+            s.targets[0].id == self.state_var
+            for s in case_body
+        )
+        
+        if not has_explicit_transition:
+            next_idx = idx + 1
+            if next_idx < total_blocks:
+                next_shuffled_state = self.block_to_state_map[next_idx]
                 case_body.append(
                     ast.Assign(
                         targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                        value=ast.Constant(idx + 1),
+                        value=ast.Constant(next_shuffled_state),
                     )
                 )
             else:
@@ -244,17 +270,38 @@ class StateMachineTransformer(ast.NodeTransformer):
     def _process_loop(self, loop_node, current_idx, total_blocks):
         """Преобразует цикл"""
         body = [loop_node]
+        next_idx = current_idx + 1
+        if next_idx < total_blocks:
+            next_shuffled_state = self.block_to_state_map[next_idx]
+            state_value = ast.Constant(next_shuffled_state)
+        else:
+            state_value = ast.Constant(self.final_state)
+            
         body.append(
             ast.Assign(
                 targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                value=ast.Constant(current_idx + 1 if current_idx < total_blocks - 1 else self.final_state),
+                value=state_value,
             )
         )
         return body
 
     def _process_try(self, try_node, current_idx, total_blocks):
         """Преобразует try-except"""
-        return [try_node]
+        next_idx = current_idx + 1
+        body = [try_node]
+        if next_idx < total_blocks:
+            next_shuffled_state = self.block_to_state_map[next_idx]
+            state_value = ast.Constant(next_shuffled_state)
+        else:
+            state_value = ast.Constant(self.final_state)
+            
+        body.append(
+            ast.Assign(
+                targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
+                value=state_value,
+            )
+        )
+        return body
 
     def apply_transformation(self, code):
         """Apply state machine transformation to Python code."""
