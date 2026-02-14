@@ -144,7 +144,7 @@ bool IsPathInTrustedList(const char* fullPath, const char* moduleName)
                 pathLower.find("\\syswow64\\") != std::string::npos) return true;
         }
     }
-    if (pathLower.find("\\numpy") != std::string::npos ||
+    if (pathLower.find("\\site-packages") != std::string::npos ||
         pathLower.find("\\python") != std::string::npos)
     {
         return true;
@@ -617,7 +617,8 @@ void DetectSuspiciousThreads()
                                     if (modulePathStr.find("openblas") != std::string::npos ||
                                         modulePathStr.find("mkl") != std::string::npos ||
                                         modulePathStr.find("tbb") != std::string::npos ||
-                                        modulePathStr.find("blas") != std::string::npos)
+                                        modulePathStr.find("blas") != std::string::npos ||
+                                        modulePathStr.find("qt") != std::string::npos)
                                     {
                                         CloseHandle(hThread);
                                         continue;
