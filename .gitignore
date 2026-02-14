@@ -1,6 +1,6 @@
 dist
 __pycache__
-.vs
+/.vs/
 .qwen
 .venv
 antidebug_temp
