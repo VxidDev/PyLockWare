@@ -1,8 +1,10 @@
 dist
 __pycache__
+/.vs/
 .vs
 .qwen
 .venv
 antidebug_temp
 /.vs/slnx.sqlite
 /.vs/PyLockWare.slnx/v18/Browse.VC.db-wal
+native_src\PyLockWareRuntime\.vs
