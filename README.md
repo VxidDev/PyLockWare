@@ -13,6 +13,7 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **Anti-Debug Protection**: Implements sophisticated anti-debugging and anti-injection mechanisms
   - Normal mode: Basic protection against common debugging tools
   - Strict mode: Enhanced protection with thread monitoring
+  - Native mode: High-performance protection using native DLL implementation (Windows AMD64 only)
 - **Multi-Platform Support**: Works across Windows, macOS, and Linux
 - **Dual Interface**: Both command-line and graphical user interfaces
 - **Preserves Functionality**: Maintains original program behavior while protecting the source code
@@ -79,7 +80,7 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 | `--banner` | Banner text to add to modules (default: "Obfuscated by PyLockWare Obfuscator") |
 | `--output-dir` | Output directory for obfuscated project (default: dist) |
 | `--remap` | Enable renaming of functions, variables, etc. to random names |
-| `--anti-debug {normal,strict}` | Enable anti-debug and anti-injection protection |
+| `--anti-debug {normal,strict,native}` | Enable anti-debug and anti-injection protection |
 | `--string-prot` | Enable string protection using base64 and zlib encoding |
 | `--num-obf` | Enable number obfuscation using arithmetic expressions |
 | `--import-obf` | Enable import obfuscation using dynamic execution techniques |
@@ -129,9 +130,10 @@ Converts numeric constants into complex mathematical expressions, hiding importa
 Hides import statements using dynamic execution, making dependency analysis more challenging.
 
 ### Anti-Debug Protection
-Implements runtime checks to detect and prevent debugging attempts, with two modes:
+Implements runtime checks to detect and prevent debugging attempts, with three modes:
 - **Normal**: Basic detection of common debugging tools
 - **Strict**: Enhanced detection including thread monitoring
+- **Native**: High-performance protection using native DLL implementation for maximum security
 
 ### State Machine Obfuscation
 Transforms functions into state machines to obfuscate control flow, making it significantly harder to analyze and understand the program's logic by converting sequential code into a series of state transitions.

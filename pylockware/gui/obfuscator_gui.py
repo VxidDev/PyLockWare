@@ -178,7 +178,8 @@ class ObfuscatorGUI(QMainWindow):
         self.anti_debug_combo = QComboBox()
         self.anti_debug_combo.addItems([
             "Strict (with thread checking, breaks pyside, pyqt, numpy and most of other native libs)",
-            "Normal (without thread checking)"
+            "Normal (without thread checking)",
+            "Native (high-performance protection using native DLL implementation)"
         ])
         self.anti_debug_combo.setCurrentIndex(0)  # Default to strict
         self.anti_debug_combo.setEnabled(True)
@@ -320,11 +321,23 @@ class ObfuscatorGUI(QMainWindow):
 
         # Set anti-debug option
         if self.anti_debug_checkbox.isChecked():
-            anti_debug_choice = self.anti_debug_combo.currentText()
-            if "Normal" in anti_debug_choice:
-                params['anti_debug'] = 'normal'
-            else:  # Strict
-                params['anti_debug'] = 'strict'
+            import platform
+            import sys
+            # Check if running on Windows AMD64
+            if not (sys.platform == 'win32' and platform.machine().lower() in ['amd64', 'x86_64']):
+                # Show warning and disable anti-debug
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Platform Warning",
+                                    "Anti-debug protection is only available for Windows AMD64. Option will be disabled.")
+                params['anti_debug'] = None
+            else:
+                anti_debug_choice = self.anti_debug_combo.currentText()
+                if "Normal" in anti_debug_choice:
+                    params['anti_debug'] = 'normal'
+                elif "Native" in anti_debug_choice:
+                    params['anti_debug'] = 'native'
+                else:  # Strict
+                    params['anti_debug'] = 'strict'
         else:
             params['anti_debug'] = None
         

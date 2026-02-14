@@ -209,7 +209,7 @@ def log_debug_info(interval=5):
         print("Next update in {} seconds...".format(interval))
         print("=" * 60)
 
-        time.sleep(30)
+        time.sleep(10)
 
 # Запуск логгера
 if __name__ == "__main__":
