@@ -4,3 +4,5 @@ __pycache__
 .qwen
 .venv
 antidebug_temp
+/.vs/slnx.sqlite
+/.vs/PyLockWare.slnx/v18/Browse.VC.db-wal
