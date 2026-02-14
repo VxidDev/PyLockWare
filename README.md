@@ -13,7 +13,7 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **Anti-Debug Protection**: Implements sophisticated anti-debugging and anti-injection mechanisms
   - Normal mode: Basic protection against common debugging tools
   - Strict mode: Enhanced protection with thread monitoring
-  - Native mode: High-performance protection using native DLL implementation
+  - Native mode: High-performance protection using native DLL implementation (Windows AMD64 only)
 - **Multi-Platform Support**: Works across Windows, macOS, and Linux
 - **Dual Interface**: Both command-line and graphical user interfaces
 - **Preserves Functionality**: Maintains original program behavior while protecting the source code
