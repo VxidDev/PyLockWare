@@ -65,6 +65,13 @@ class PyObfuscator:
         if self.string_prot:
             string_prot_config = {'name_gen': self.name_gen}
             self.module_manager.add_module(StringProtectModule(string_prot_config))
+        
+        if self.anti_debug:
+            anti_debug_config = {
+                'mode': self.anti_debug,
+                'entry_point': str(self.entry_point)
+            }
+            self.module_manager.add_module(AntiDebugModule(anti_debug_config))
 
         # Import obfuscation should happen AFTER remapping to capture remapped names
         if self.import_obf:
@@ -80,12 +87,7 @@ class PyObfuscator:
 
 
 
-        if self.anti_debug:
-            anti_debug_config = {
-                'mode': self.anti_debug,
-                'entry_point': str(self.entry_point)
-            }
-            self.module_manager.add_module(AntiDebugModule(anti_debug_config))
+        
 
         if self.state_machine:
             state_machine_config = {'name_gen': self.name_gen}

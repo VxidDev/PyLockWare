@@ -74,18 +74,31 @@ class StateMachineTransformer(ast.NodeTransformer):
             self.state_var = old_state
             return self.generic_visit(node)
 
-        # Создаем перемешанные индексы состояний
-        original_indices = list(range(len(blocks)))
-        shuffled_indices = list(range(len(blocks)))
-        random.shuffle(shuffled_indices)
+        # Генерируем действительно случайные значения для состояний
+        unique_states = set()
+        shuffled_indices = []
         
-        # Создаем словарь соответствия: оригинальный индекс -> перемешанный индекс
-        self.block_to_state_map = dict(zip(original_indices, shuffled_indices))
+        for i in range(len(blocks)):
+            # Генерируем случайное значение до тех пор, пока не найдем уникальное
+            while True:
+                rand_state = random.randint(1000, 999999)  # Случайное число в диапазоне
+                if rand_state not in unique_states:
+                    unique_states.add(rand_state)
+                    shuffled_indices.append(rand_state)
+                    break
         
-        # Также создаем обратный словарь: перемешанный индекс -> оригинальный
-        self.state_to_block_map = dict(zip(shuffled_indices, original_indices))
-        
-        self.final_state = max(shuffled_indices) + 1  # Устанавливаем финальное состояние как максимальный индекс + 1
+        # Создаем словарь соответствия: оригинальный индекс -> случайное состояние
+        self.block_to_state_map = dict(zip(range(len(blocks)), shuffled_indices))
+
+        # Также создаем обратный словарь: случайное состояние -> оригинальный индекс
+        self.state_to_block_map = dict(zip(shuffled_indices, range(len(blocks))))
+
+        # Генерируем случайное значение для финального состояния
+        while True:
+            final_rand_state = random.randint(1000, 999999)
+            if final_rand_state not in unique_states:
+                self.final_state = final_rand_state
+                break
 
         # -----------------------------
         # Генерация state machine
