@@ -5,3 +5,8 @@ PySide6~=6.10.2
 pyside6-fluent-widgets
 
 #numpy is optional
+
+# Nuitka for EXE packaging (optional)
+nuitka>=2.0
+ordered-set
+zstd

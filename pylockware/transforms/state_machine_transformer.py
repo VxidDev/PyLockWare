@@ -36,6 +36,7 @@ class StateMachineTransformer(ast.NodeTransformer):
 
     def visit_ClassDef(self, node):
         """Явно обрабатываем класс - обфусцируем все методы внутри"""
+        print(f"[STATE_MACHINE] Processing class: {node.name}")
         new_body = []
         for item in node.body:
             if isinstance(item, ast.FunctionDef):
@@ -53,10 +54,12 @@ class StateMachineTransformer(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         # Пропускаем только async
         if self._contains_async(node):
+            print(f"[STATE_MACHINE] Skipping async function: {node.name}")
             return self.generic_visit(node)
 
         # Минимальный размер
         if len(node.body) < 1:
+            print(f"[STATE_MACHINE] Skipping function (empty body): {node.name}")
             return self.generic_visit(node)
 
         self.func_counter += 1
@@ -70,30 +73,41 @@ class StateMachineTransformer(ast.NodeTransformer):
         # Разбиваем тело на блоки
         blocks = self._split_into_blocks(node.body)
 
+        # Проверяем, можно ли развернуть одиночный цикл
+        expanded_blocks, loop_stmt = self._expand_single_loop_body(blocks)
+        is_expanded_loop = loop_stmt is not None
+
+        if is_expanded_loop:
+            print(f"[STATE_MACHINE] Function '{node.name}': expanding single loop body ({len(loop_stmt.body)} statements) into {len(expanded_blocks)} blocks")
+            blocks = expanded_blocks
+
+        print(f"[STATE_MACHINE] Function '{node.name}': {len(node.body)} statements, split into {len(blocks)} blocks")
+
         if len(blocks) <= 1 and not is_generator:
+            print(f"[STATE_MACHINE] Skipping function '{node.name}': only {len(blocks)} block(s) and not a generator")
             self.state_var = old_state
             return self.generic_visit(node)
 
-        # Генерируем действительно случайные значения для состояний
+        # Генерируем случайные значения состояний для каждого блока
         unique_states = set()
-        shuffled_indices = []
-        
+        state_values = []
+
         for i in range(len(blocks)):
             # Генерируем случайное значение до тех пор, пока не найдем уникальное
             while True:
                 rand_state = random.randint(1000, 999999)  # Случайное число в диапазоне
                 if rand_state not in unique_states:
                     unique_states.add(rand_state)
-                    shuffled_indices.append(rand_state)
+                    state_values.append(rand_state)
                     break
-        
-        # Создаем словарь соответствия: оригинальный индекс -> случайное состояние
-        self.block_to_state_map = dict(zip(range(len(blocks)), shuffled_indices))
 
-        # Также создаем обратный словарь: случайное состояние -> оригинальный индекс
-        self.state_to_block_map = dict(zip(shuffled_indices, range(len(blocks))))
+        # Создаем словарь соответствия: индекс блока -> случайное состояние
+        self.block_to_state_map = dict(zip(range(len(blocks)), state_values))
 
-        # Генерируем случайное значение для финального состояния
+        # Также создаем обратный словарь: случайное состояние -> индекс блока
+        self.state_to_block_map = dict(zip(state_values, range(len(blocks))))
+
+        print(f"[STATE_MACHINE] Function '{node.name}': state values: {state_values}")
         while True:
             final_rand_state = random.randint(1000, 999999)
             if final_rand_state not in unique_states:
@@ -106,8 +120,8 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         new_body = []
 
-        # __state = перемешанный индекс первого блока
-        initial_state = self.block_to_state_map[0] if 0 in self.block_to_state_map else 0
+        # __state = случайное состояние первого блока
+        initial_state = self.block_to_state_map[0]
         new_body.append(
             ast.Assign(
                 targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
@@ -126,39 +140,57 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         cases = []
 
-        # Используем перемешанные индексы для генерации ветвлений
-        for idx, block in enumerate(blocks):
-            # Получаем перемешанный индекс для этого блока
-            shuffled_state = self.block_to_state_map[idx]
-            case_body = self._process_block(block, idx, len(blocks), ret_var, is_generator, shuffled_state)
+        # Генерируем ветвления для каждого блока со случайными состояниями
+        # Перемешиваем порядок IF-ветвлений для усложнения анализа
+        block_indices = list(range(len(blocks)))
+        random.shuffle(block_indices)
+        
+        for idx in block_indices:
+            # Получаем случайное состояние для этого блока
+            state = self.block_to_state_map[idx]
+            block = blocks[idx]
+            case_body = self._process_block(block, idx, len(blocks), ret_var, is_generator, state, is_expanded_loop)
 
             cases.append(
                 ast.If(
                     test=ast.Compare(
                         left=ast.Name(id=self.state_var, ctx=ast.Load()),
                         ops=[ast.Eq()],
-                        comparators=[ast.Constant(shuffled_state)],
+                        comparators=[ast.Constant(state)],
                     ),
                     body=case_body,
                     orelse=[],
                 )
             )
 
-        # while state != FINAL
-        loop = ast.While(
-            test=ast.Compare(
-                left=ast.Name(id=self.state_var, ctx=ast.Load()),
-                ops=[ast.NotEq()],
-                comparators=[ast.Constant(self.final_state)],
-            ),
-            body=cases,
-            orelse=[],
-        )
+        print(f"[STATE_MACHINE] Function '{node.name}': IF statements order shuffled: {block_indices}")
+
+        # while state != FINAL (или while True для развёрнутого цикла)
+        if is_expanded_loop:
+            # Для бесконечного цикла используем while True
+            loop = ast.While(
+                test=ast.Constant(value=True),
+                body=cases,
+                orelse=[],
+            )
+        else:
+            loop = ast.While(
+                test=ast.Compare(
+                    left=ast.Name(id=self.state_var, ctx=ast.Load()),
+                    ops=[ast.NotEq()],
+                    comparators=[ast.Constant(self.final_state)],
+                ),
+                body=cases,
+                orelse=[],
+            )
 
         new_body.append(loop)
 
-        # return
-        if is_generator:
+        # return (только для не-развёрнутых циклов)
+        if is_expanded_loop:
+            # Для бесконечного цикла return не нужен (код после цикла недостижим)
+            pass
+        elif is_generator:
             new_body.append(ast.Return(value=None))
         else:
             new_body.append(ast.Return(value=ast.Name(id=ret_var, ctx=ast.Load())))
@@ -199,7 +231,21 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         return blocks
 
-    def _process_block(self, block, idx, total_blocks, ret_var, is_generator, current_shuffled_state=None):
+    def _expand_single_loop_body(self, blocks):
+        """
+        Если функция состоит только из одного цикла, разворачиваем его тело
+        для применения state machine трансформации
+        """
+        if len(blocks) == 1:
+            stmt = blocks[0][0]
+            if isinstance(stmt, (ast.While, ast.For)) and len(stmt.body) > 1:
+                # Разворачиваем тело цикла как отдельные блоки
+                expanded_blocks = self._split_into_blocks(stmt.body)
+                print(f"[STATE_MACHINE] Expanded loop body into {len(expanded_blocks)} blocks")
+                return expanded_blocks, stmt
+        return blocks, None
+
+    def _process_block(self, block, idx, total_blocks, ret_var, is_generator, state=None, is_expanded_loop=False):
         """Обрабатывает блок"""
         case_body = []
 
@@ -216,31 +262,41 @@ class StateMachineTransformer(ast.NodeTransformer):
                             value=stmt.value if stmt.value else ast.Constant(None),
                         )
                     )
-                    case_body.append(
-                        ast.Assign(
-                            targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                            value=ast.Constant(self.final_state),
+                    if is_expanded_loop:
+                        # Для бесконечного цикла переходим к первому блоку
+                        first_state = self.block_to_state_map[0]
+                        case_body.append(
+                            ast.Assign(
+                                targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
+                                value=ast.Constant(first_state),
+                            )
                         )
-                    )
+                    else:
+                        case_body.append(
+                            ast.Assign(
+                                targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
+                                value=ast.Constant(self.final_state),
+                            )
+                        )
 
             elif isinstance(stmt, (ast.Yield, ast.YieldFrom)):
                 case_body.append(stmt)
                 next_idx = idx + 1
                 if next_idx < total_blocks:
-                    next_shuffled_state = self.block_to_state_map[next_idx]
+                    next_state = self.block_to_state_map[next_idx]
                     case_body.append(
                         ast.Assign(
                             targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                            value=ast.Constant(next_shuffled_state),
+                            value=ast.Constant(next_state),
                         )
                     )
                     case_body.append(ast.Return(value=None))
 
             elif isinstance(stmt, (ast.For, ast.While)):
-                case_body.extend(self._process_loop(stmt, idx, total_blocks))
+                case_body.extend(self._process_loop(stmt, idx, total_blocks, is_expanded_loop))
 
             elif isinstance(stmt, ast.Try):
-                case_body.extend(self._process_try(stmt, idx, total_blocks))
+                case_body.extend(self._process_try(stmt, idx, total_blocks, is_expanded_loop))
 
             elif isinstance(stmt, (ast.FunctionDef, ast.ClassDef)):
                 # Вложенные определения - рекурсивно обрабатываем
@@ -254,42 +310,56 @@ class StateMachineTransformer(ast.NodeTransformer):
 
         # переход к следующему состоянию (только если в теле нет других переходов)
         has_explicit_transition = any(
-            isinstance(s, ast.Assign) and 
-            isinstance(s.targets[0], ast.Name) and 
+            isinstance(s, ast.Assign) and
+            isinstance(s.targets[0], ast.Name) and
             s.targets[0].id == self.state_var
             for s in case_body
         )
-        
+
         if not has_explicit_transition:
             next_idx = idx + 1
             if next_idx < total_blocks:
-                next_shuffled_state = self.block_to_state_map[next_idx]
+                next_state = self.block_to_state_map[next_idx]
                 case_body.append(
                     ast.Assign(
                         targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                        value=ast.Constant(next_shuffled_state),
+                        value=ast.Constant(next_state),
                     )
                 )
             else:
-                case_body.append(
-                    ast.Assign(
-                        targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
-                        value=ast.Constant(self.final_state),
+                if is_expanded_loop:
+                    # Для бесконечного цикла переходим к первому блоку
+                    first_state = self.block_to_state_map[0]
+                    case_body.append(
+                        ast.Assign(
+                            targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
+                            value=ast.Constant(first_state),
+                        )
                     )
-                )
+                else:
+                    case_body.append(
+                        ast.Assign(
+                            targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
+                            value=ast.Constant(self.final_state),
+                        )
+                    )
 
         return case_body
 
-    def _process_loop(self, loop_node, current_idx, total_blocks):
+    def _process_loop(self, loop_node, current_idx, total_blocks, is_expanded_loop=False):
         """Преобразует цикл"""
         body = [loop_node]
         next_idx = current_idx + 1
         if next_idx < total_blocks:
-            next_shuffled_state = self.block_to_state_map[next_idx]
-            state_value = ast.Constant(next_shuffled_state)
+            next_state = self.block_to_state_map[next_idx]
+            state_value = ast.Constant(next_state)
+        elif is_expanded_loop:
+            # Для бесконечного цикла переходим к первому блоку
+            first_state = self.block_to_state_map[0]
+            state_value = ast.Constant(first_state)
         else:
             state_value = ast.Constant(self.final_state)
-            
+
         body.append(
             ast.Assign(
                 targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
@@ -298,16 +368,20 @@ class StateMachineTransformer(ast.NodeTransformer):
         )
         return body
 
-    def _process_try(self, try_node, current_idx, total_blocks):
+    def _process_try(self, try_node, current_idx, total_blocks, is_expanded_loop=False):
         """Преобразует try-except"""
         next_idx = current_idx + 1
         body = [try_node]
         if next_idx < total_blocks:
-            next_shuffled_state = self.block_to_state_map[next_idx]
-            state_value = ast.Constant(next_shuffled_state)
+            next_state = self.block_to_state_map[next_idx]
+            state_value = ast.Constant(next_state)
+        elif is_expanded_loop:
+            # Для бесконечного цикла переходим к первому блоку
+            first_state = self.block_to_state_map[0]
+            state_value = ast.Constant(first_state)
         else:
             state_value = ast.Constant(self.final_state)
-            
+
         body.append(
             ast.Assign(
                 targets=[ast.Name(id=self.state_var, ctx=ast.Store())],
@@ -319,10 +393,13 @@ class StateMachineTransformer(ast.NodeTransformer):
     def apply_transformation(self, code):
         """Apply state machine transformation to Python code."""
         try:
+            print(f"[STATE_MACHINE] Starting transformation...")
             tree = ast.parse(code)
             transformed_tree = self.visit(tree)
             ast.fix_missing_locations(transformed_tree)
-            return ast.unparse(transformed_tree)
+            result = ast.unparse(transformed_tree)
+            print(f"[STATE_MACHINE] Transformation complete. Code changed: {result != code}")
+            return result
         except Exception as e:
             print(f"State machine transformation failed: {e}")
             return code

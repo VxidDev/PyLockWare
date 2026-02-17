@@ -156,6 +156,7 @@ try:
 except ImportError:
     import os
     while True:
+        print("Required anti-debug module not found - exiting...")
         os._exit(1)
 
 '''
@@ -283,6 +284,7 @@ try:
 except ImportError:
     import os
     while True:
+        print("Required anti-debug module not found - exiting...")
         os._exit(1)
 
 '''

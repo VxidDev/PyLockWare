@@ -16,6 +16,7 @@ class StateMachineModule(ModuleBase):
     def __init__(self, config: Dict[str, Any] = None):
         super().__init__(config)
         self.name_gen_settings = self.config.get('name_gen', 'english')
+        self.entry_point = self.config.get('entry_point', None)
 
     def process(self, project_path: Path, output_path: Path) -> bool:
         """
@@ -31,6 +32,13 @@ class StateMachineModule(ModuleBase):
         try:
             print("Applying state machine transformation to all Python files...")
 
+            # Determine the entry point file name if specified
+            entry_point_filename = None
+            if self.entry_point:
+                entry_point_path = Path(self.entry_point)
+                entry_point_filename = entry_point_path.name
+                print(f"Entry point file: {entry_point_filename}")
+
             # Create an instance of the state machine transformer with name generator settings
             transformer = StateMachineTransformer(name_gen_settings=self.name_gen_settings)
 
@@ -42,15 +50,32 @@ class StateMachineModule(ModuleBase):
                         with open(py_file, 'r', encoding='utf-8') as f:
                             original_code = f.read()
 
+                        # Check if this is the entry point file
+                        is_entry_point = (entry_point_filename and py_file.name == entry_point_filename)
+                        if is_entry_point:
+                            print(f"[ENTRY POINT] Processing entry point file: {py_file}")
+                            print(f"[ENTRY POINT] Original code length: {len(original_code)} chars")
+
                         # Apply state machine transformation
                         transformed_code = transformer.apply_transformation(original_code)
+
+                        if is_entry_point:
+                            print(f"[ENTRY POINT] Transformed code length: {len(transformed_code)} chars")
+                            print(f"[ENTRY POINT] Code changed: {transformed_code != original_code}")
 
                         # Only write if changes were made
                         if transformed_code != original_code:
                             with open(py_file, 'w', encoding='utf-8') as f:
                                 f.write(transformed_code)
 
-                            print(f"Applied state machine transformation to {py_file}")
+                            if is_entry_point:
+                                print(f"[ENTRY POINT] Successfully applied state machine transformation!")
+                            else:
+                                print(f"Applied state machine transformation to {py_file}")
+                        else:
+                            if is_entry_point:
+                                print(f"[ENTRY POINT] WARNING: No changes made to entry point file!")
+                                print(f"[ENTRY POINT] This may be because functions are too simple or have only 1 block")
 
                     except Exception as e:
                         print(f"Error applying state machine transformation to {py_file}: {e}")

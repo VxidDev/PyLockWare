@@ -165,6 +165,29 @@ After obfuscation, always test your protected code to ensure it functions correc
 - Some antivirus software may flag anti-debug protections as suspicious
 - The obfuscated code remains Python and can theoretically be reversed with sufficient effort
 
+### ⚠️ Nuitka EXE Packaging Limitations
+
+When using Nuitka to package your obfuscated code into a standalone EXE:
+
+- **Anti-debug protection is automatically disabled** - Runtime debugging checks and native DLL injection are incompatible with Nuitka's compilation process
+- **Import obfuscation is automatically disabled** - Dynamic import techniques break during C compilation
+
+**Why these features don't work with Nuitka:**
+- Nuitka compiles Python to C/C++ and then to native machine code
+- Dynamic imports and runtime module manipulation cannot be translated to compiled code
+- Native DLL loading mechanisms don't work in the compiled executable context
+
+**For production-grade protection of compiled executables:**
+- Use dedicated executable protectors like **Themida**, **VMProtect**, or **Enigma Protector**
+- These tools provide advanced anti-debug, anti-tamper, and code virtualization
+- Apply these protectors *after* Nuitka compilation for maximum security
+
+### Recommended Workflow for EXE Distribution
+
+1. Obfuscate your Python code with PyLockWare (without anti-debug/import-obf)
+2. Package with Nuitka into a standalone EXE
+3. Apply a native protector (Themida/VMProtect) to the resulting EXE
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.

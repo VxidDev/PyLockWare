@@ -9,3 +9,4 @@ antidebug_temp
 /.vs/PyLockWare.slnx/v18/Browse.VC.db-wal
 native_src\PyLockWareRuntime\.vs
 env
+nuitka_dist

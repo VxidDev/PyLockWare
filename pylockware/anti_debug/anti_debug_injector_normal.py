@@ -47,8 +47,15 @@ class NormalInjectionDetector:
             os.environ.get('SYSTEMROOT', r'C:\Windows').lower(),
             sys.prefix.lower(),
             os.path.dirname(sys.executable).lower(),
-            sys.base_prefix.lower()
+            sys.base_prefix.lower(),
         ]
+
+        # Temp directories (whitelisted for DLL loading)
+        temp_dirs = [
+            os.path.join(os.environ.get('SYSTEMROOT', r'C:\Windows'), 'Temp').lower(),  # C:\Windows\Temp
+            os.path.join(os.environ.get('TEMP', os.environ.get('TMP', ''))).lower(),   # User temp (e.g., C:\Users\...\AppData\Local\Temp)
+        ]
+        safe_prefixes.extend(temp_dirs)
 
         # Antivirus and security software paths to whitelist
         antivirus_prefixes = [
@@ -120,13 +127,70 @@ class NormalInjectionDetector:
             if any(pattern in thread_name for pattern in debugger_thread_patterns):
                 return True
 
+        # Windows-specific checks
+        if sys.platform == 'win32':
+            # Check IsDebuggerPresent via WinAPI
+            try:
+                import ctypes
+                if ctypes.windll.kernel32.IsDebuggerPresent():
+                    return True
+            except Exception:
+                pass
+
+            # Check PEB (Process Environment Block) for BeingDebugged flag
+            try:
+                import ctypes
+                # Get PEB pointer
+                peb_offset = 0x60 if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x30
+                # Read PEB from GS:0x60 (x64) or FS:0x30 (x86)
+                import ctypes.wintypes as wintypes
+                
+                # Get current process handle
+                current_process = ctypes.windll.kernel32.GetCurrentProcess()
+                
+                # Read BeingDebugged flag from PEB
+                # Using NtQueryInformationProcess as alternative
+                class PROCESS_BASIC_INFORMATION(ctypes.Structure):
+                    _fields_ = [
+                        ("ExitStatus", wintypes.LONG),
+                        ("PebBaseAddress", ctypes.c_void_p),
+                        ("AffinityMask", ctypes.c_void_p),
+                        ("BasePriority", ctypes.c_void_p),
+                        ("UniqueProcessId", ctypes.c_void_p),
+                        ("InheritedFromUniqueProcessId", ctypes.c_void_p),
+                    ]
+                
+                pbi = PROCESS_BASIC_INFORMATION()
+                return_length = wintypes.ULONG()
+                
+                if ctypes.windll.ntdll.NtQueryInformationProcess(
+                    current_process,
+                    0,  # ProcessBasicInformation
+                    ctypes.byref(pbi),
+                    ctypes.sizeof(pbi),
+                    ctypes.byref(return_length)
+                ) == 0:
+                    # Read BeingDebugged flag (offset 0x2 in PEB)
+                    being_debugged = ctypes.c_ubyte()
+                    if ctypes.windll.kernel32.ReadProcessMemory(
+                        current_process,
+                        ctypes.c_void_p(pbi.PebBaseAddress + 0x2),
+                        ctypes.byref(being_debugged),
+                        1,
+                        None
+                    ):
+                        if being_debugged.value:
+                            return True
+            except Exception:
+                pass
+
         return False
 
     def run_protection(self):
         """Main protection loop"""
         while True:
             try:
-                # Check for debugger
+                # Check for debuggerF
                 if self.detect_debugger():
                     self.trigger_protection("Debugger detected")
                     break
@@ -148,6 +212,7 @@ class NormalInjectionDetector:
         """Trigger protection response"""
         # Hard crash without any console output
         while True:
+            print("detected")
             os._exit(1)
 
     def start_monitoring(self):

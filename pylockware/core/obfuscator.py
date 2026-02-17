@@ -19,16 +19,24 @@ from pylockware.modules.number_obf_module import NumberObfModule
 from pylockware.modules.anti_debug_module import AntiDebugModule
 from pylockware.modules.import_obf_module import ImportObfuscateModule
 from pylockware.modules.state_machine_module import StateMachineModule
+from pylockware.modules.nuitka_builder_module import NuitkaBuilderModule
 
 
 class PyObfuscator:
     """
     A Python obfuscator using the new modular system
+    
+    Note: Anti-debug and import obfuscation are incompatible with Nuitka EXE packaging.
+    For production protection, consider using dedicated protectors like Themida, VMProtect, etc.
     """
 
     def __init__(self, project_path: str, entry_point: str, entry_function: str = "main", output_dir: str = "dist",
                  remap: bool = False, anti_debug: str = None, string_prot: bool = False, num_obf: bool = False,
-                 import_obf: bool = False, state_machine: bool = False, name_gen: str = 'english'):
+                 import_obf: bool = False, state_machine: bool = False, name_gen: str = 'english',
+                 enable_nuitka: bool = False, nuitka_onefile: bool = True, nuitka_standalone: bool = True,
+                 nuitka_output_name: str = None, nuitka_disable_console: bool = True, nuitka_icon: str = None,
+                 nuitka_admin: bool = False, nuitka_plugins: List[str] = None, nuitka_extra_imports: List[str] = None,
+                 nuitka_options: List[str] = None):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
@@ -40,10 +48,53 @@ class PyObfuscator:
         self.import_obf = import_obf  # Enable import obfuscation
         self.state_machine = state_machine  # Enable state machine obfuscation
         self.name_gen = name_gen  # Character set for name generation
-        
+
+        # Nuitka options
+        self.enable_nuitka = enable_nuitka
+        self.nuitka_onefile = nuitka_onefile
+        self.nuitka_standalone = nuitka_standalone
+        self.nuitka_output_name = nuitka_output_name
+        self.nuitka_disable_console = nuitka_disable_console
+        self.nuitka_icon = nuitka_icon
+        self.nuitka_admin = nuitka_admin
+        self.nuitka_plugins = nuitka_plugins or []
+        self.nuitka_extra_imports = nuitka_extra_imports or []
+        self.nuitka_options = nuitka_options or []
+
         # Initialize module manager
         self.module_manager = ModuleManager()
+        self.nuitka_module = None
+        
+        # Validate and adjust incompatible options
+        self._validate_nuitka_compatibility()
+        
         self.setup_modules()
+
+    def _validate_nuitka_compatibility(self):
+        """
+        Validate and disable options that are incompatible with Nuitka EXE packaging.
+        
+        Note: Anti-debug and import obfuscation do not work with Nuitka because:
+        - Nuitka compiles Python to C/C++ and then to native code
+        - Dynamic imports and runtime module manipulation break during compilation
+        - Native anti-debug DLL cannot be loaded from compiled code
+        
+        For production protection, use dedicated protectors like Themida, VMProtect, etc.
+        """
+        if self.enable_nuitka:
+            # Disable anti-debug with Nuitka
+            if self.anti_debug:
+                print(f"WARNING: Anti-debug protection is incompatible with Nuitka EXE packaging.")
+                print(f"         Anti-debug has been disabled.")
+                print(f"         For production protection, use dedicated protectors like Themida, VMProtect, etc.")
+                self.anti_debug = None
+            
+            # Disable import obfuscation with Nuitka
+            if self.import_obf:
+                print(f"WARNING: Import obfuscation is incompatible with Nuitka EXE packaging.")
+                print(f"         Import obfuscation has been disabled.")
+                print(f"         For production protection, use dedicated protectors like Themida, VMProtect, etc.")
+                self.import_obf = False
         
     def setup_modules(self):
         """
@@ -52,7 +103,32 @@ class PyObfuscator:
         # Set project paths in the module manager
         self.module_manager.set_project_paths(self.project_path, self.output_dir)
 
+        # Analyze imports BEFORE obfuscation if Nuitka is enabled
+        # This captures all real imports before they get transformed
+        nuitka_config = None
+        if self.enable_nuitka:
+            # First, analyze imports from the ORIGINAL project
+            self.nuitka_module = NuitkaBuilderModule({})
+            self.nuitka_module.analyze_imports(self.project_path)
 
+            # Now build the full config with detected imports
+            nuitka_config = {
+                'enable_nuitka': True,
+                'entry_point': str(self.entry_point),
+                'onefile': self.nuitka_onefile,
+                'standalone': self.nuitka_standalone,
+                'output_name': self.nuitka_output_name,
+                'windows_disable_console': self.nuitka_disable_console,
+                'windows_icon': self.nuitka_icon,
+                'windows_uac_admin': self.nuitka_admin,
+                'plugins': self.nuitka_plugins,
+                'extra_imports': self.nuitka_extra_imports,
+                'nuitka_options': self.nuitka_options,
+                'detected_imports': self.nuitka_module.detected_imports,
+                'detected_frameworks': self.nuitka_module.detected_frameworks,
+            }
+            # Re-create the module with the full config (preserving detected imports)
+            self.nuitka_module = NuitkaBuilderModule(nuitka_config)
 
         if self.remap:
             remap_config = {
@@ -65,7 +141,7 @@ class PyObfuscator:
         if self.string_prot:
             string_prot_config = {'name_gen': self.name_gen}
             self.module_manager.add_module(StringProtectModule(string_prot_config))
-        
+
         if self.anti_debug:
             anti_debug_config = {
                 'mode': self.anti_debug,
@@ -81,17 +157,17 @@ class PyObfuscator:
         if self.num_obf:
             num_obf_config = {'name_gen': self.name_gen}
             self.module_manager.add_module(NumberObfModule(num_obf_config))
-            
-
-            
-
-
-
-        
 
         if self.state_machine:
-            state_machine_config = {'name_gen': self.name_gen}
+            state_machine_config = {
+                'name_gen': self.name_gen,
+                'entry_point': str(self.entry_point)
+            }
             self.module_manager.add_module(StateMachineModule(state_machine_config))
+
+        # Add Nuitka module LAST so it runs after all obfuscation
+        if self.enable_nuitka:
+            self.module_manager.add_module(self.nuitka_module)
     
     def validate_paths(self):
         """
@@ -117,13 +193,15 @@ class PyObfuscator:
         print(f"Entry function: {self.entry_function}")
         print(f"Modules enabled: remap={self.remap}, anti_debug={self.anti_debug}, string_prot={self.string_prot}, num_obf={self.num_obf}, import_obf={self.import_obf}, state_machine={self.state_machine}")
         print(f"Name generator settings: {self.name_gen}")
+        if self.enable_nuitka:
+            print(f"Nuitka packaging: enabled (onefile={self.nuitka_onefile})")
 
         # Validate paths
         self.validate_paths()
 
         # Run all modules
         success = self.module_manager.run_modules()
-        
+
         if not success:
             print("Obfuscation failed due to module execution error")
             return False

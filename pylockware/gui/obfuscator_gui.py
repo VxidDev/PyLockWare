@@ -7,12 +7,13 @@ from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                                QPushButton, QLineEdit, QLabel, QFileDialog, QCheckBox, 
                                QTextEdit, QGroupBox, QFormLayout, QMessageBox, QComboBox,
-                               QTabWidget, QScrollArea)
+                               QTabWidget, QScrollArea, QRadioButton)
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont
 
 from pylockware.core.obfuscator import PyObfuscator
 from pylockware.modules.import_obf_module import ImportObfuscateModule
+from pylockware.modules.nuitka_builder_module import NuitkaBuilderModule
 
 
 class ObfuscatorWorker(QThread):
@@ -78,7 +79,11 @@ class ObfuscatorGUI(QMainWindow):
         # Additional Settings Tab
         self.additional_tab = self.create_additional_tab()
         self.tab_widget.addTab(self.additional_tab, "Additional Settings")
-        
+
+        # Nuitka EXE Packaging Tab
+        self.nuitka_tab = self.create_nuitka_tab()
+        self.tab_widget.addTab(self.nuitka_tab, "Nuitka EXE")
+
         main_layout.addWidget(self.tab_widget)
         
         # Buttons
@@ -167,9 +172,10 @@ class ObfuscatorGUI(QMainWindow):
         """Create the runtime protection tab"""
         tab = QWidget()
         layout = QVBoxLayout()
-        
+
         # Anti-debug option
         self.anti_debug_checkbox = QCheckBox("Enable anti-debug and anti-injection protection")
+        self.anti_debug_checkbox.clicked.connect(self.on_anti_debug_clicked)
         layout.addWidget(self.anti_debug_checkbox)
         
         # Anti-debug mode selection
@@ -216,6 +222,7 @@ class ObfuscatorGUI(QMainWindow):
 
         # Import obfuscation option
         self.import_obf_checkbox = QCheckBox("Enable import obfuscation using dynamic execution techniques")
+        self.import_obf_checkbox.clicked.connect(self.on_importobf_clicked)
         layout.addWidget(self.import_obf_checkbox)
 
         # Description for import obfuscation
@@ -300,11 +307,11 @@ class ObfuscatorGUI(QMainWindow):
         if not self.project_path_edit.text().strip():
             QMessageBox.warning(self, "Input Error", "Please select a project path.")
             return
-            
+
         if not self.entry_point_edit.text().strip():
             QMessageBox.warning(self, "Input Error", "Please specify an entry point file.")
             return
-        
+
         # Prepare parameters for the obfuscator
         params = {
             'project_path': self.project_path_edit.text().strip(),
@@ -340,12 +347,43 @@ class ObfuscatorGUI(QMainWindow):
                     params['anti_debug'] = 'strict'
         else:
             params['anti_debug'] = None
-        
+
+        # Set Nuitka options
+        params['enable_nuitka'] = self.nuitka_enable_checkbox.isChecked()
+        params['nuitka_onefile'] = self.nuitka_onefile_checkbox.isChecked()
+        params['nuitka_standalone'] = self.nuitka_standalone_checkbox.isChecked()
+        params['nuitka_output_name'] = self.nuitka_output_name_edit.text().strip() or None
+        params['nuitka_disable_console'] = self.nuitka_disable_console_checkbox.isChecked()
+        params['nuitka_icon'] = self.nuitka_icon_edit.text().strip() or None
+        params['nuitka_admin'] = self.nuitka_admin_checkbox.isChecked()
+
+        # Collect selected plugins
+        nuitka_plugins = []
+        if self.nuitka_plugin_tkinter.isChecked():
+            nuitka_plugins.append('tk-inter')
+        if self.nuitka_plugin_pyside6.isChecked():
+            nuitka_plugins.append('pyside6')
+        if self.nuitka_plugin_pyqt5.isChecked():
+            nuitka_plugins.append('pyqt5')
+        if self.nuitka_plugin_numpy.isChecked():
+            nuitka_plugins.append('numpy')
+        if self.nuitka_plugin_multiprocessing.isChecked():
+            nuitka_plugins.append('multiprocessing')
+        params['nuitka_plugins'] = nuitka_plugins
+
+        # Extra imports
+        extra_imports_str = self.nuitka_extra_imports_edit.text().strip()
+        params['nuitka_extra_imports'] = [x.strip() for x in extra_imports_str.split(',') if x.strip()] if extra_imports_str else []
+
+        # Custom options
+        custom_options_str = self.nuitka_custom_options_edit.text().strip()
+        params['nuitka_options'] = custom_options_str.split() if custom_options_str else []
+
         # Disable UI during processing
         self.start_btn.setEnabled(False)
         self.log_text.clear()
         self.log_text.append("Starting obfuscation process...\n")
-        
+
         # Create and start the worker thread
         self.worker = ObfuscatorWorker(params)
         self.worker.progress_signal.connect(self.update_log)
@@ -355,6 +393,55 @@ class ObfuscatorGUI(QMainWindow):
     def update_log(self, message):
         """Update the log text with a message"""
         self.log_text.append(message)
+
+    def on_nuitka_clicked(self, checked):
+        """Handle Nuitka checkbox click - warn about incompatible options"""
+        if checked:  # Checkbox was just checked
+            # Warn about anti-debug incompatibility
+            if self.anti_debug_checkbox.isChecked():
+                QMessageBox.warning(
+                    self, "Nuitka Compatibility Warning",
+                    "Anti-debug protection is incompatible with Nuitka EXE packaging.\n\n"
+                    "Anti-debug has been disabled.\n\n"
+                    "For production protection, use dedicated protectors like Themida, VMProtect\n"
+                    "after Nuitka compilation."
+                )
+                self.anti_debug_checkbox.setChecked(False)
+
+            # Warn about import obfuscation incompatibility
+            if self.import_obf_checkbox.isChecked():
+                QMessageBox.warning(
+                    self, "Nuitka Compatibility Warning",
+                    "Import obfuscation is incompatible with Nuitka EXE packaging.\n\n"
+                    "Import obfuscation has been disabled.\n\n"
+                    "For production protection, use dedicated protectors like Themida, VMProtect\n"
+                    "after Nuitka compilation."
+                )
+                self.import_obf_checkbox.setChecked(False)
+
+    def on_importobf_clicked(self, checked):
+        """Handle import obfuscation checkbox click - warn if Nuitka is enabled"""
+        if checked and self.nuitka_enable_checkbox.isChecked():
+            QMessageBox.warning(
+                self, "Nuitka Compatibility Warning",
+                "Import obfuscation is incompatible with Nuitka EXE packaging.\n\n"
+                "Please disable Nuitka EXE packaging first if you want to use import obfuscation.\n\n"
+                "For production protection, use dedicated protectors like Themida, VMProtect\n"
+                "after Nuitka compilation."
+            )
+            self.import_obf_checkbox.setChecked(False)
+
+    def on_anti_debug_clicked(self, checked):
+        """Handle anti-debug checkbox click - warn if Nuitka is enabled"""
+        if checked and self.nuitka_enable_checkbox.isChecked():
+            QMessageBox.warning(
+                self, "Nuitka Compatibility Warning",
+                "Anti-debug protection is incompatible with Nuitka EXE packaging.\n\n"
+                "Please disable Nuitka EXE packaging first if you want to use anti-debug.\n\n"
+                "For production protection, use dedicated protectors like Themida, VMProtect\n"
+                "after Nuitka compilation."
+            )
+            self.anti_debug_checkbox.setChecked(False)
     
     def obfuscation_finished(self, success, message):
         """Handle the completion of the obfuscation process"""
@@ -376,6 +463,175 @@ class ObfuscatorGUI(QMainWindow):
         index = self.name_gen_combo.currentIndex()
         name_gen_options = ['english', 'chinese', 'mixed', 'numbers', 'hex']
         return name_gen_options[index] if 0 <= index < len(name_gen_options) else 'english'
+
+    def select_icon_file(self):
+        """Open a dialog to select the icon file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Icon File",
+            os.path.expanduser("~"),
+            "Icon Files (*.ico);;All Files (*)"
+        )
+        if file_path:
+            self.nuitka_icon_edit.setText(file_path)
+
+    def auto_detect_plugins(self):
+        """Auto-detect required plugins based on project imports"""
+        project_path = self.project_path_edit.text().strip()
+        if not project_path:
+            QMessageBox.warning(self, "Input Error", "Please select a project path first.")
+            return
+
+        # Create an analyzer and detect frameworks
+        analyzer = NuitkaBuilderModule().import_analyzer
+        all_imports = analyzer.analyze_directory(Path(project_path))
+        frameworks = analyzer.detect_frameworks(all_imports)
+
+        # Update checkboxes based on detected frameworks
+        self.nuitka_plugin_tkinter.setChecked(frameworks.get('tkinter', False))
+        self.nuitka_plugin_pyside6.setChecked(frameworks.get('pyside6', False))
+        self.nuitka_plugin_pyqt5.setChecked(frameworks.get('pyqt5', False))
+        self.nuitka_plugin_numpy.setChecked(frameworks.get('numpy', False))
+        self.nuitka_plugin_multiprocessing.setChecked(frameworks.get('multiprocessing', False))
+
+        detected = [k for k, v in frameworks.items() if v]
+        if detected:
+            self.log_text.append(f"Auto-detected frameworks: {', '.join(detected)}")
+        else:
+            self.log_text.append("No specific frameworks detected")
+
+    def create_nuitka_tab(self):
+        """Create the Nuitka EXE packaging tab"""
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+
+        # Enable Nuitka checkbox
+        self.nuitka_enable_checkbox = QCheckBox("Enable EXE packaging with Nuitka")
+        self.nuitka_enable_checkbox.clicked.connect(self.on_nuitka_clicked)
+        layout.addWidget(self.nuitka_enable_checkbox)
+
+        # Description
+        nuitka_desc = QLabel("Nuitka compiles Python code to C/C++ and packages it into a standalone executable.\nThis makes reverse engineering significantly harder.")
+        nuitka_desc.setWordWrap(True)
+        nuitka_desc.setStyleSheet("color: gray;")
+        layout.addWidget(nuitka_desc)
+
+        # Output name
+        output_name_layout = QHBoxLayout()
+        output_name_label = QLabel("Output EXE name:")
+        self.nuitka_output_name_edit = QLineEdit()
+        self.nuitka_output_name_edit.setPlaceholderText("e.g., MyApplication.exe (optional)")
+        output_name_layout.addWidget(output_name_label)
+        output_name_layout.addWidget(self.nuitka_output_name_edit)
+        layout.addLayout(output_name_layout)
+
+        # Build mode options (both can be enabled)
+        build_mode_group = QGroupBox("Build Mode")
+        build_mode_layout = QVBoxLayout()
+
+        self.nuitka_onefile_checkbox = QCheckBox("--onefile (create single executable file)")
+        self.nuitka_onefile_checkbox.setChecked(True)
+        build_mode_layout.addWidget(self.nuitka_onefile_checkbox)
+
+        self.nuitka_standalone_checkbox = QCheckBox("--standalone (create standalone distribution)")
+        self.nuitka_standalone_checkbox.setChecked(True)
+        build_mode_layout.addWidget(self.nuitka_standalone_checkbox)
+
+        build_mode_desc = QLabel("Note: Both options can be enabled together. --onefile creates a single .exe,\n--standalone ensures all dependencies are included.")
+        build_mode_desc.setWordWrap(True)
+        build_mode_desc.setStyleSheet("color: gray;")
+        build_mode_layout.addWidget(build_mode_desc)
+
+        build_mode_group.setLayout(build_mode_layout)
+        layout.addWidget(build_mode_group)
+
+        # Windows options
+        windows_group = QGroupBox("Windows Options")
+        windows_layout = QVBoxLayout()
+
+        self.nuitka_disable_console_checkbox = QCheckBox("Disable console window (GUI applications)")
+        self.nuitka_disable_console_checkbox.setChecked(True)
+        windows_layout.addWidget(self.nuitka_disable_console_checkbox)
+
+        self.nuitka_admin_checkbox = QCheckBox("Request administrator privileges (UAC)")
+        windows_layout.addWidget(self.nuitka_admin_checkbox)
+
+        # Icon file
+        icon_layout = QHBoxLayout()
+        icon_label = QLabel("Icon file (.ico):")
+        self.nuitka_icon_edit = QLineEdit()
+        self.nuitka_icon_edit.setPlaceholderText("Path to .ico file (optional)")
+        icon_browse_btn = QPushButton("Browse...")
+        icon_browse_btn.clicked.connect(self.select_icon_file)
+        icon_layout.addWidget(icon_label)
+        icon_layout.addWidget(self.nuitka_icon_edit)
+        icon_layout.addWidget(icon_browse_btn)
+        windows_layout.addLayout(icon_layout)
+
+        windows_group.setLayout(windows_layout)
+        layout.addWidget(windows_group)
+
+        # Plugins selection
+        plugins_group = QGroupBox("Nuitka Plugins")
+        plugins_layout = QVBoxLayout()
+
+        self.nuitka_plugin_tkinter = QCheckBox("tk-inter (Tkinter GUI)")
+        plugins_layout.addWidget(self.nuitka_plugin_tkinter)
+
+        self.nuitka_plugin_pyside6 = QCheckBox("pyside6 (PySide6 GUI)")
+        plugins_layout.addWidget(self.nuitka_plugin_pyside6)
+
+        self.nuitka_plugin_pyqt5 = QCheckBox("pyqt5 (PyQt5 GUI)")
+        plugins_layout.addWidget(self.nuitka_plugin_pyqt5)
+
+        self.nuitka_plugin_numpy = QCheckBox("numpy (NumPy support)")
+        plugins_layout.addWidget(self.nuitka_plugin_numpy)
+
+        self.nuitka_plugin_multiprocessing = QCheckBox("multiprocessing")
+        plugins_layout.addWidget(self.nuitka_plugin_multiprocessing)
+
+        # Auto-detect button
+        auto_detect_btn = QPushButton("Auto-detect required plugins")
+        auto_detect_btn.clicked.connect(self.auto_detect_plugins)
+        plugins_layout.addWidget(auto_detect_btn)
+
+        plugins_group.setLayout(plugins_layout)
+        layout.addWidget(plugins_group)
+
+        # Extra imports
+        extra_imports_layout = QVBoxLayout()
+        extra_imports_label = QLabel("Extra imports (comma-separated):")
+        self.nuitka_extra_imports_edit = QLineEdit()
+        self.nuitka_extra_imports_edit.setPlaceholderText("e.g., requests, PIL, custom_module")
+        extra_imports_layout.addWidget(extra_imports_label)
+        extra_imports_layout.addWidget(self.nuitka_extra_imports_edit)
+        layout.addLayout(extra_imports_layout)
+
+        # Custom options
+        custom_options_layout = QVBoxLayout()
+        custom_options_label = QLabel("Custom Nuitka options (space-separated):")
+        self.nuitka_custom_options_edit = QLineEdit()
+        self.nuitka_custom_options_edit.setPlaceholderText("e.g., --nofollow-imports --assume-yes-for-downloads")
+        custom_options_layout.addWidget(custom_options_label)
+        custom_options_layout.addWidget(self.nuitka_custom_options_edit)
+        layout.addLayout(custom_options_layout)
+
+        # Warning note
+        warning_note = QLabel("Note: Nuitka must be installed separately: pip install nuitka")
+        warning_note.setWordWrap(True)
+        warning_note.setStyleSheet("color: orange;")
+        layout.addWidget(warning_note)
+
+        layout.addStretch()
+        scroll.setWidget(scroll_content)
+
+        nuitka_main_layout = QVBoxLayout(tab)
+        nuitka_main_layout.addWidget(scroll)
+
+        return tab
 
 
 def main():
