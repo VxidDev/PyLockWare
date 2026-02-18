@@ -241,6 +241,16 @@ class ObfuscatorGUI(QMainWindow):
         state_machine_desc.setStyleSheet("color: gray;")
         layout.addWidget(state_machine_desc)
 
+        # Builtin dispatcher obfuscation option
+        self.builtin_dispatcher_checkbox = QCheckBox("Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls")
+        layout.addWidget(self.builtin_dispatcher_checkbox)
+
+        # Description for builtin dispatcher obfuscation
+        builtin_dispatcher_desc = QLabel("Builtin dispatcher replaces built-in function calls (print(), len(), etc.) with calls\nvia a dispatcher class, making it harder to identify built-in function usage.")
+        builtin_dispatcher_desc.setWordWrap(True)
+        builtin_dispatcher_desc.setStyleSheet("color: gray;")
+        layout.addWidget(builtin_dispatcher_desc)
+
         layout.addStretch()  # Add space to push content to the top
         tab.setLayout(layout)
         return tab
@@ -302,6 +312,7 @@ class ObfuscatorGUI(QMainWindow):
             self.project_path_edit.setText(directory)
     
     def start_obfuscation(self):
+        from PySide6.QtWidgets import QMessageBox
         """Start the obfuscation process"""
         # Validate inputs
         if not self.project_path_edit.text().strip():
@@ -311,6 +322,20 @@ class ObfuscatorGUI(QMainWindow):
         if not self.entry_point_edit.text().strip():
             QMessageBox.warning(self, "Input Error", "Please specify an entry point file.")
             return
+
+        # Warn about anti-debug + Nuitka incompatibility
+        if self.nuitka_enable_checkbox.isChecked() and self.anti_debug_checkbox.isChecked():
+            reply = QMessageBox.question(
+                self, "Anti-Debug + Nuitka Warning",
+                "You have enabled both Anti-Debug protection and Nuitka EXE packaging.\n\n"
+                "Anti-debug protection is incompatible with Nuitka and will be automatically\n"
+                "disabled during compilation. This may cause unexpected behavior.\n\n"
+                "Are you sure you want to continue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply == QMessageBox.No:
+                return
 
         # Prepare parameters for the obfuscator
         params = {
@@ -323,6 +348,7 @@ class ObfuscatorGUI(QMainWindow):
             'num_obf': self.num_obf_checkbox.isChecked(),
             'import_obf': self.import_obf_checkbox.isChecked(),
             'state_machine': self.state_machine_checkbox.isChecked(),
+            'builtin_dispatcher': self.builtin_dispatcher_checkbox.isChecked(),
             'name_gen': self._get_name_gen_setting(),
         }
 
@@ -336,6 +362,9 @@ class ObfuscatorGUI(QMainWindow):
                 from PySide6.QtWidgets import QMessageBox
                 QMessageBox.warning(self, "Platform Warning",
                                     "Anti-debug protection is only available for Windows AMD64. Option will be disabled.")
+                params['anti_debug'] = None
+            elif self.nuitka_enable_checkbox.isChecked():
+                # Nuitka is enabled, anti-debug will be disabled automatically by obfuscator
                 params['anti_debug'] = None
             else:
                 anti_debug_choice = self.anti_debug_combo.currentText()
@@ -402,13 +431,13 @@ class ObfuscatorGUI(QMainWindow):
                 QMessageBox.warning(
                     self, "Nuitka Compatibility Warning",
                     "Anti-debug protection is incompatible with Nuitka EXE packaging.\n\n"
-                    "Anti-debug has been disabled.\n\n"
+                    "The obfuscation process will continue, but anti-debug protection will be\n"
+                    "automatically disabled during Nuitka compilation.\n\n"
                     "For production protection, use dedicated protectors like Themida, VMProtect\n"
                     "after Nuitka compilation."
                 )
-                self.anti_debug_checkbox.setChecked(False)
 
-            # Warn about import obfuscation incompatibility
+            # Warn about import obfuscation incompatibility and disable it
             if self.import_obf_checkbox.isChecked():
                 QMessageBox.warning(
                     self, "Nuitka Compatibility Warning",
@@ -425,7 +454,7 @@ class ObfuscatorGUI(QMainWindow):
             QMessageBox.warning(
                 self, "Nuitka Compatibility Warning",
                 "Import obfuscation is incompatible with Nuitka EXE packaging.\n\n"
-                "Please disable Nuitka EXE packaging first if you want to use import obfuscation.\n\n"
+                "Import obfuscation has been disabled.\n\n"
                 "For production protection, use dedicated protectors like Themida, VMProtect\n"
                 "after Nuitka compilation."
             )
@@ -437,11 +466,10 @@ class ObfuscatorGUI(QMainWindow):
             QMessageBox.warning(
                 self, "Nuitka Compatibility Warning",
                 "Anti-debug protection is incompatible with Nuitka EXE packaging.\n\n"
-                "Please disable Nuitka EXE packaging first if you want to use anti-debug.\n\n"
+                "Anti-debug protection will be automatically disabled during Nuitka compilation.\n\n"
                 "For production protection, use dedicated protectors like Themida, VMProtect\n"
                 "after Nuitka compilation."
             )
-            self.anti_debug_checkbox.setChecked(False)
     
     def obfuscation_finished(self, success, message):
         """Handle the completion of the obfuscation process"""

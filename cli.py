@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
     parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
     parser.add_argument("--state-machine", action="store_true", help="Enable state machine obfuscation to transform functions into state machines")
+    parser.add_argument("--builtin-dispatcher", action="store_true", help="Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls")
     parser.add_argument("--name-gen", choices=['english', 'chinese', 'mixed', 'numbers', 'hex'],
                        default='english', help="Character set for name generation (default: english)")
 
@@ -86,6 +87,7 @@ def main():
         num_obf=args.num_obf,
         import_obf=args.import_obf,
         state_machine=args.state_machine,
+        builtin_dispatcher=args.builtin_dispatcher,
         name_gen=args.name_gen,
         enable_nuitka=args.nuitka,
         nuitka_onefile=args.nuitka_onefile,
