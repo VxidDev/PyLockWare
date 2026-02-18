@@ -9,11 +9,9 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **Number Obfuscation**: Transforms numeric constants into complex arithmetic expressions
 - **Import Obfuscation**: Hides import statements using dynamic execution techniques
 - **State Machine Obfuscation**: Transforms functions into state machines to obfuscate control flow
+- **Builtin Dispatcher Obfuscation**: Replaces built-in function calls (print, len, input, etc.) with calls via a dispatcher class using obfuscated names
 - **Configurable Name Generators**: Customizable character sets for generated obfuscated names (English, Chinese, mixed, numbers, hex)
-- **Anti-Debug Protection**: Implements sophisticated anti-debugging and anti-injection mechanisms
-  - Normal mode: Basic protection against common debugging tools
-  - Strict mode: Enhanced protection with thread monitoring
-  - Native mode: High-performance protection using native DLL implementation (Windows AMD64 only)
+- **Anti-Debug Protection**: Windows AMD64 only, very unstable, especially with nuitka.
 - **Multi-Platform Support**: Works across Windows, macOS, and Linux
 - **Dual Interface**: Both command-line and graphical user interfaces
 - **Preserves Functionality**: Maintains original program behavior while protecting the source code
@@ -85,6 +83,7 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 | `--num-obf` | Enable number obfuscation using arithmetic expressions |
 | `--import-obf` | Enable import obfuscation using dynamic execution techniques |
 | `--state-machine` | Enable state machine obfuscation to transform functions into state machines |
+| `--builtin-dispatcher` | Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls |
 | `--name-gen {english,chinese,mixed,numbers,hex}` | Character set for name generation (default: english) |
 
 #### Example Usage
@@ -138,6 +137,23 @@ Implements runtime checks to detect and prevent debugging attempts, with three m
 ### State Machine Obfuscation
 Transforms functions into state machines to obfuscate control flow, making it significantly harder to analyze and understand the program's logic by converting sequential code into a series of state transitions.
 
+### Builtin Dispatcher Obfuscation
+Replaces built-in function calls (such as `print()`, `len()`, `input()`, `open()`, etc.) with calls through a dispatcher class using obfuscated names. This makes it harder to identify which built-in functions are being used in the code.
+
+**Example:**
+```python
+# Before obfuscation:
+print("Hello, World!")
+result = len(items)
+
+# After obfuscation:
+from _builtin_dispatcher import _abc123 as _XyZ789
+_XyZ789.ghJkLm("Hello, World!")
+result = _XyZ789.NoPqRs(items)
+```
+
+The dispatcher is automatically created and copied to each package directory, ensuring proper imports regardless of the module's location in the project structure.
+
 ### Configurable Name Generators
 Provides customizable character sets for generating obfuscated names, including:
 - **English**: Standard Latin letters and digits
@@ -164,6 +180,13 @@ After obfuscation, always test your protected code to ensure it functions correc
 - Heavier obfuscation may impact runtime performance
 - Some antivirus software may flag anti-debug protections as suspicious
 - The obfuscated code remains Python and can theoretically be reversed with sufficient effort
+
+
+### Recommended Workflow for EXE Distribution
+
+1. Obfuscate your Python code with PyLockWare (without anti-debug/import-obf)
+2. Package with Nuitka into a standalone EXE
+3. Apply a native protector (Themida/VMProtect) to the resulting EXE
 
 ## 🤝 Contributing
 

@@ -34,6 +34,8 @@ from qfluentwidgets import (
     TabWidget,
 )
 from file_panel import FilePanel
+# Set dark theme to avoid system contrast colors
+from qfluentwidgets import setTheme, Theme
 
 
 class PythonSyntaxHighlighter(QSyntaxHighlighter):
@@ -421,8 +423,7 @@ def main():
     # Set application style
     app.setStyle("Fusion")
 
-    # Set dark theme to avoid system contrast colors
-    from qfluentwidgets import setTheme, Theme
+    
 
     setTheme(Theme.DARK)
 

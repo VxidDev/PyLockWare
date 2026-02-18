@@ -27,8 +27,25 @@ def main():
     parser.add_argument("--num-obf", action="store_true", help="Enable number obfuscation using arithmetic expressions")
     parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
     parser.add_argument("--state-machine", action="store_true", help="Enable state machine obfuscation to transform functions into state machines")
-    parser.add_argument("--name-gen", choices=['english', 'chinese', 'mixed', 'numbers', 'hex'], 
+    parser.add_argument("--builtin-dispatcher", action="store_true", help="Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls")
+    parser.add_argument("--name-gen", choices=['english', 'chinese', 'mixed', 'numbers', 'hex'],
                        default='english', help="Character set for name generation (default: english)")
+
+    # Nuitka EXE packaging options
+    nuitka_group = parser.add_argument_group("Nuitka EXE Packaging Options")
+    nuitka_group.add_argument("--nuitka", action="store_true", help="Enable packaging into EXE using Nuitka")
+    nuitka_group.add_argument("--nuitka-onefile", action="store_true", default=True, help="Create a single executable file with --onefile (default: True)")
+    nuitka_group.add_argument("--nuitka-no-onefile", action="store_false", dest="nuitka_onefile", help="Disable --onefile option")
+    nuitka_group.add_argument("--nuitka-standalone", action="store_true", default=True, help="Create a standalone distribution with --standalone (default: True)")
+    nuitka_group.add_argument("--nuitka-no-standalone", action="store_false", dest="nuitka_standalone", help="Disable --standalone option")
+    nuitka_group.add_argument("--nuitka-output-name", type=str, help="Custom name for the output executable")
+    nuitka_group.add_argument("--nuitka-disable-console", action="store_true", default=True, help="Disable console window for GUI applications (Windows only, default: True)")
+    nuitka_group.add_argument("--nuitka-enable-console", action="store_false", dest="nuitka_disable_console", help="Enable console window")
+    nuitka_group.add_argument("--nuitka-icon", type=str, help="Path to .ico file for the executable icon (Windows only)")
+    nuitka_group.add_argument("--nuitka-admin", action="store_true", help="Request administrator privileges (Windows UAC)")
+    nuitka_group.add_argument("--nuitka-plugins", type=str, nargs='+', help="List of Nuitka plugins to enable (e.g., tk-inter, pyside6, numpy, multiprocessing)")
+    nuitka_group.add_argument("--nuitka-extra-imports", type=str, nargs='+', help="List of additional modules to include explicitly")
+    nuitka_group.add_argument("--nuitka-options", type=str, nargs='+', help="Additional custom Nuitka command-line options")
 
     args = parser.parse_args()
 
@@ -38,6 +55,15 @@ def main():
     if args.anti_debug and not (sys.platform == 'win32' and platform.machine().lower() in ['amd64', 'x86_64']):
         print("Warning: Anti-debug protection is only available for Windows AMD64. Option will be ignored.")
         args.anti_debug = None
+
+    if args.anti_debug:
+        print("\n" + "="*70)
+        print("WARNING: Anti-debug protection is not a complete security solution.")
+        print("         • It may be incompatible with other obfuscation modules")
+        print("         • It can be bypassed by experienced reverse engineers")
+        print("         • For production protection, use dedicated protectors like")
+        print("           Themida, VMProtect after obfuscation.")
+        print("="*70 + "\n")
 
     obfuscator = PyObfuscator(
         project_path=args.project_path,
@@ -50,7 +76,18 @@ def main():
         num_obf=args.num_obf,
         import_obf=args.import_obf,
         state_machine=args.state_machine,
+        builtin_dispatcher=args.builtin_dispatcher,
         name_gen=args.name_gen,
+        enable_nuitka=args.nuitka,
+        nuitka_onefile=args.nuitka_onefile,
+        nuitka_standalone=args.nuitka_standalone,
+        nuitka_output_name=args.nuitka_output_name,
+        nuitka_disable_console=args.nuitka_disable_console,
+        nuitka_icon=args.nuitka_icon,
+        nuitka_admin=args.nuitka_admin,
+        nuitka_plugins=args.nuitka_plugins,
+        nuitka_extra_imports=args.nuitka_extra_imports,
+        nuitka_options=args.nuitka_options,
     )
 
     obfuscator.run_obfuscation(args.banner)

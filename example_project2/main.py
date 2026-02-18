@@ -27,12 +27,9 @@ import json as js
 from pathlib import Path as P
 
 # 6. Conditional imports
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
-    np = None
+
+HAS_NUMPY = False
+np = None
 
 
 def main():
