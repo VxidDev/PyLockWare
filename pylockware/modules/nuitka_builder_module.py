@@ -4,6 +4,7 @@ Packages obfuscated Python applications into standalone EXE files using Nuitka
 """
 import ast
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -378,6 +379,10 @@ class NuitkaBuilderModule(ModuleBase):
         # Build Nuitka output directory (separate from obfuscated output)
         nuitka_output = output_path.parent / 'nuitka_dist'
 
+        # Clean up existing nuitka_dist folder
+        if nuitka_output.exists():
+            shutil.rmtree(nuitka_output)
+
         # Build the command
         cmd = self.build_nuitka_command(full_entry_path, nuitka_output)
 
@@ -400,8 +405,8 @@ class NuitkaBuilderModule(ModuleBase):
             print(f"Nuitka packaging completed successfully!")
             print(f"Output directory: {nuitka_output}")
 
-            # Copy the EXE to a more accessible location
-            self._copy_exe_to_output(nuitka_output, output_path)
+            # Clean up the output directory (copy EXE or .dist folder)
+            self._cleanup_output_directory(output_path, nuitka_output)
 
             return True
 
@@ -412,26 +417,77 @@ class NuitkaBuilderModule(ModuleBase):
             print(f"Error during Nuitka packaging: {e}")
             return False
 
-    def _copy_exe_to_output(self, nuitka_output: Path, output_path: Path):
+    def _cleanup_output_directory(self, output_path: Path, nuitka_output: Path):
         """
-        Copy the generated EXE to the output directory for easy access
+        Clean up the output directory after Nuitka compilation
+
+        For onefile mode: copy only the EXE file from nuitka_dist root
+        For standalone mode: copy all contents from nuitka_dist
 
         Args:
-            nuitka_output: Path to Nuitka's output directory
             output_path: Path to the main output directory
+            nuitka_output: Path to Nuitka's output directory
         """
         import shutil
 
-        # Find the EXE file
-        exe_files = list(nuitka_output.glob('*.exe'))
-        if exe_files:
-            exe_file = exe_files[0]
-            dest = output_path / exe_file.name
-            try:
-                shutil.copy2(exe_file, dest)
-                print(f"EXE copied to: {dest}")
-            except Exception as e:
-                print(f"Warning: Could not copy EXE: {e}")
+        print(f"Cleaning up output directory: {output_path}")
+
+        if self.config.get('onefile', True):
+            # Onefile mode: copy only the EXE file
+            exe_files = list(nuitka_output.glob('*.exe'))
+            if not exe_files:
+                print("Warning: No EXE files found")
+                return
+
+            main_exe = exe_files[0]
+            dest = output_path / main_exe.name
+            shutil.copy2(main_exe, dest)
+            print(f"EXE copied to: {dest}")
+
+            # Remove all other files from output_path
+            for item in output_path.iterdir():
+                if item.name != main_exe.name:
+                    try:
+                        if item.is_file():
+                            item.unlink()
+                            print(f"Removed: {item}")
+                        elif item.is_dir():
+                            shutil.rmtree(item)
+                            print(f"Removed directory: {item}")
+                    except Exception as e:
+                        print(f"Warning: Could not remove {item}: {e}")
+
+            print(f"Output directory cleaned. Kept: {main_exe.name}")
+
+        else:
+            # Standalone mode: copy all contents from nuitka_dist
+            print(f"Contents of nuitka_output ({nuitka_output}):")
+            for item in nuitka_output.iterdir():
+                print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
+
+            # First, remove old contents from output_path
+            for item in output_path.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                        print(f"Removed: {item}")
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                        print(f"Removed directory: {item}")
+                except Exception as e:
+                    print(f"Warning: Could not remove {item}: {e}")
+
+            # Copy all contents from nuitka_dist to output_path
+            for item in nuitka_output.iterdir():
+                dest = output_path / item.name
+                if item.is_file():
+                    shutil.copy2(item, dest)
+                    print(f"Copied file: {item.name}")
+                elif item.is_dir():
+                    shutil.copytree(item, dest)
+                    print(f"Copied directory: {item.name}")
+
+            print(f"Standalone contents copied from {nuitka_output} to {output_path}")
 
     def get_info(self) -> Dict[str, Any]:
         """

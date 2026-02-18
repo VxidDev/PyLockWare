@@ -56,25 +56,14 @@ def main():
         print("Warning: Anti-debug protection is only available for Windows AMD64. Option will be ignored.")
         args.anti_debug = None
 
-    # Warn about incompatible options with Nuitka
-    if args.nuitka:
-        if args.anti_debug:
-            print("\n" + "="*70)
-            print("WARNING: Anti-debug is incompatible with Nuitka EXE packaging.")
-            print("         Anti-debug has been disabled.")
-            print("         For production protection, use protectors like Themida/VMProtect")
-            print("         after Nuitka compilation.")
-            print("="*70 + "\n")
-            args.anti_debug = None
-        
-        if args.import_obf:
-            print("\n" + "="*70)
-            print("WARNING: Import obfuscation is incompatible with Nuitka EXE packaging.")
-            print("         Import obfuscation has been disabled.")
-            print("         For production protection, use protectors like Themida/VMProtect")
-            print("         after Nuitka compilation.")
-            print("="*70 + "\n")
-            args.import_obf = False
+    if args.anti_debug:
+        print("\n" + "="*70)
+        print("WARNING: Anti-debug protection is not a complete security solution.")
+        print("         • It may be incompatible with other obfuscation modules")
+        print("         • It can be bypassed by experienced reverse engineers")
+        print("         • For production protection, use dedicated protectors like")
+        print("           Themida, VMProtect after obfuscation.")
+        print("="*70 + "\n")
 
     obfuscator = PyObfuscator(
         project_path=args.project_path,

@@ -87,16 +87,12 @@ class PyObfuscator:
         if self.enable_nuitka:
             # Disable anti-debug with Nuitka
             if self.anti_debug:
-                print(f"WARNING: Anti-debug protection is incompatible with Nuitka EXE packaging.")
-                print(f"         Anti-debug has been disabled.")
-                print(f"         For production protection, use dedicated protectors like Themida, VMProtect, etc.")
                 self.anti_debug = None
-            
+
             # Disable import obfuscation with Nuitka
             if self.import_obf:
                 print(f"WARNING: Import obfuscation is incompatible with Nuitka EXE packaging.")
                 print(f"         Import obfuscation has been disabled.")
-                print(f"         For production protection, use dedicated protectors like Themida, VMProtect, etc.")
                 self.import_obf = False
         
     def setup_modules(self):
