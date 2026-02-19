@@ -10,6 +10,7 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **Import Obfuscation**: Hides import statements using dynamic execution techniques
 - **State Machine Obfuscation**: Transforms functions into state machines to obfuscate control flow
 - **Builtin Dispatcher Obfuscation**: Replaces built-in function calls (print, len, input, etc.) with calls via a dispatcher class using obfuscated names
+- **Disable Traceback**: Hides error details by setting sys.tracebacklimit = 0 at the start of each file
 - **Configurable Name Generators**: Customizable character sets for generated obfuscated names (English, Chinese, mixed, numbers, hex)
 - **Anti-Debug Protection**: Windows AMD64 only, very unstable, especially with nuitka.
 - **Multi-Platform Support**: Works across Windows, macOS, and Linux
@@ -84,6 +85,7 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 | `--import-obf` | Enable import obfuscation using dynamic execution techniques |
 | `--state-machine` | Enable state machine obfuscation to transform functions into state machines |
 | `--builtin-dispatcher` | Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls |
+| `--disable-traceback` | Disable traceback by setting sys.tracebacklimit = 0 at the start of each file |
 | `--name-gen {english,chinese,mixed,numbers,hex}` | Character set for name generation (default: english) |
 
 #### Example Usage
@@ -91,6 +93,11 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 Basic obfuscation with all protections enabled:
 ```bash
 python cli.py /path/to/project --entry-point main.py --remap --string-prot --num-obf --import-obf --anti-debug strict
+```
+
+Obfuscation with traceback disabled (hides error details):
+```bash
+python cli.py /path/to/project --entry-point main.py --remap --string-prot --disable-traceback
 ```
 
 Light obfuscation with only identifier remapping:

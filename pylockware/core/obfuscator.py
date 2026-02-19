@@ -38,7 +38,7 @@ class PyObfuscator:
                  enable_nuitka: bool = False, nuitka_onefile: bool = True, nuitka_standalone: bool = True,
                  nuitka_output_name: str = None, nuitka_disable_console: bool = True, nuitka_icon: str = None,
                  nuitka_admin: bool = False, nuitka_plugins: List[str] = None, nuitka_extra_imports: List[str] = None,
-                 nuitka_options: List[str] = None):
+                 nuitka_options: List[str] = None, disable_traceback: bool = False):
         self.project_path = Path(project_path)
         self.entry_point = Path(entry_point)
         self.entry_function = entry_function
@@ -51,6 +51,7 @@ class PyObfuscator:
         self.state_machine = state_machine  # Enable state machine obfuscation
         self.builtin_dispatcher = builtin_dispatcher  # Enable builtin dispatcher
         self.name_gen = name_gen  # Character set for name generation
+        self.disable_traceback = disable_traceback  # Disable traceback by setting sys.tracebacklimit = 0
 
         # Nuitka options
         self.enable_nuitka = enable_nuitka
@@ -221,6 +222,12 @@ class PyObfuscator:
             self.add_banner_to_module(module, banner_text)
             print(f"Added banner to: {module}")
 
+        # Add sys.tracebacklimit = 0 if enabled
+        if self.disable_traceback:
+            for module in modules:
+                self.add_disable_traceback(module)
+                print(f"Added traceback disable to: {module}")
+
         print(f"Obfuscation process completed! Output saved to: {self.output_dir}")
         return True
 
@@ -251,6 +258,46 @@ class PyObfuscator:
         banner_text = '\n'.join(banner_lines) + '\n\n'
 
         new_content = '\n'.join(lines[:insert_position]) + banner_text + '\n'.join(lines[insert_position:])
+
+        with open(module_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+
+    def add_disable_traceback(self, module_path: Path):
+        """
+        Add sys.tracebacklimit = 0 at the start of a module to disable traceback
+        """
+        with open(module_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Check if tracebacklimit already exists
+        if 'sys.tracebacklimit' in content[:500]:  # Check first 500 chars for efficiency
+            return
+
+        # Add import sys and tracebacklimit at the beginning, preserving any existing shebang or encoding declaration
+        lines = content.split('\n')
+        insert_position = 0
+
+        # Skip shebang and encoding declarations
+        for i, line in enumerate(lines):
+            if line.startswith('#!') or line.startswith('# -*- coding:'):
+                insert_position = i + 1
+            else:
+                break
+
+        # Check if 'import sys' already exists at the beginning
+        has_sys_import = any('import sys' in line for line in lines[:20])
+
+        if has_sys_import:
+            # Just add tracebacklimit after the sys import
+            for i, line in enumerate(lines):
+                if 'import sys' in line:
+                    lines.insert(i + 1, 'sys.tracebacklimit = 0')
+                    break
+            new_content = '\n'.join(lines)
+        else:
+            # Add import sys and tracebacklimit
+            prefix = 'import sys\nsys.tracebacklimit = 0\n\n'
+            new_content = '\n'.join(lines[:insert_position]) + prefix + '\n'.join(lines[insert_position:])
 
         with open(module_path, 'w', encoding='utf-8') as f:
             f.write(new_content)

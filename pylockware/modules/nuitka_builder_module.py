@@ -269,7 +269,7 @@ class NuitkaBuilderModule(ModuleBase):
         Returns:
             List of command line arguments
         """
-        cmd = [sys.executable, '-m', 'nuitka']
+        cmd = [sys.executable, '-m', 'nuitka', '--lto=yes']
 
         # Output directory
         cmd.append(f'--output-dir={output_dir}')

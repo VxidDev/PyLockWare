@@ -191,6 +191,15 @@ class ObfuscatorGUI(QMainWindow):
         string_prot_layout.addStretch()
         layout.addLayout(string_prot_layout)
 
+        # Disable traceback option
+        traceback_layout = QHBoxLayout()
+        self.disable_traceback_checkbox = QCheckBox("Disable traceback")
+        self.disable_traceback_checkbox.setToolTip("Disable traceback by setting sys.tracebacklimit = 0")
+        traceback_layout.addWidget(self.disable_traceback_checkbox)
+        traceback_layout.addWidget(self.create_help_button("Disables Python traceback output by setting sys.tracebacklimit = 0 at the start of each obfuscated file. This prevents error details from being shown."))
+        traceback_layout.addStretch()
+        layout.addLayout(traceback_layout)
+
         layout.addStretch()
         tab.setLayout(layout)
         return tab
@@ -350,6 +359,7 @@ class ObfuscatorGUI(QMainWindow):
             'state_machine': self.state_machine_checkbox.isChecked(),
             'builtin_dispatcher': self.builtin_dispatcher_checkbox.isChecked(),
             'name_gen': self._get_name_gen_setting(),
+            'disable_traceback': self.disable_traceback_checkbox.isChecked(),
         }
 
         # Set anti-debug option
