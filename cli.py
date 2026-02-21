@@ -28,6 +28,9 @@ def main():
     parser.add_argument("--import-obf", action="store_true", help="Enable import obfuscation using dynamic execution techniques")
     parser.add_argument("--state-machine", action="store_true", help="Enable state machine obfuscation to transform functions into state machines")
     parser.add_argument("--builtin-dispatcher", action="store_true", help="Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls")
+    parser.add_argument("--junk-code", action="store_true", help="Enable junk code generation with fake if/elif branches (true/false conditions)")
+    parser.add_argument("--junk-density", type=float, default=0.5, help="Junk code density from 0.0 to 1.0 (default: 0.5)")
+    parser.add_argument("--opaque-complexity", choices=['low', 'medium', 'high'], default='high', help="Complexity level of opaque predicates (default: high)")
     parser.add_argument("--disable-traceback", action="store_true", help="Disable traceback by setting sys.tracebacklimit = 0 at the start of each file")
     parser.add_argument("--name-gen", choices=['english', 'chinese', 'mixed', 'numbers', 'hex'],
                        default='english', help="Character set for name generation (default: english)")
@@ -78,6 +81,9 @@ def main():
         import_obf=args.import_obf,
         state_machine=args.state_machine,
         builtin_dispatcher=args.builtin_dispatcher,
+        junk_code=args.junk_code,
+        junk_density=args.junk_density,
+        opaque_complexity=args.opaque_complexity,
         name_gen=args.name_gen,
         disable_traceback=args.disable_traceback,
         enable_nuitka=args.nuitka,
