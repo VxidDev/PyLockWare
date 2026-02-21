@@ -28,14 +28,20 @@ class NameGenerator:
     def generate_name(self, prefix='') -> str:
         """
         Generate a random name with the specified prefix.
-        
+        Ensures the name starts with a letter or underscore (valid Python identifier).
+
         Args:
             prefix: Prefix to add to the random name
-            
+
         Returns:
             Randomly generated name
         """
         length = 32  # Default length
+        
+        # If prefix is empty or doesn't start with letter/underscore, add underscore
+        if not prefix or (prefix[0] not in string.ascii_letters + '_'):
+            prefix = '_' + prefix
+        
         random_part = ''.join(random.choice(self.char_set) for _ in range(length))
         return f"{prefix}{random_part}"
 

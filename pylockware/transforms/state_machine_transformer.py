@@ -9,11 +9,13 @@ from pylockware.core.name_generator import generate_random_name
 
 
 class StateMachineTransformer(ast.NodeTransformer):
-    def __init__(self, name_gen_settings='english'):
+    def __init__(self, name_gen_settings='english', add_junk_states=True):
         self.func_counter = 0
         self.state_var = None
         self.final_state = None
         self.name_gen_settings = name_gen_settings
+        self.add_junk_states = add_junk_states
+        self.junk_states = []  # Список мусорных состояний
 
     # -----------------------------
     # Utility
@@ -29,6 +31,383 @@ class StateMachineTransformer(ast.NodeTransformer):
 
     def _contains_async(self, node):
         return any(isinstance(n, ast.AsyncFunctionDef) for n in ast.walk(node))
+
+    # -----------------------------
+    # Junk State Generation
+    # -----------------------------
+
+    def _generate_junk_states(self, num_junk_states=3):
+        """Generate fake states with junk code that never executes."""
+        if not self.add_junk_states:
+            return []
+
+        junk_cases = []
+        used_states = set(self.block_to_state_map.values())
+        if self.final_state:
+            used_states.add(self.final_state)
+
+        for i in range(num_junk_states):
+            # Generate unique state value
+            while True:
+                junk_state = random.randint(1000, 999999)
+                if junk_state not in used_states:
+                    used_states.add(junk_state)
+                    self.junk_states.append(junk_state)
+                    break
+
+            # Generate junk code block
+            junk_block = self._generate_junk_code_block()
+
+            # Create if branch for junk state (always false condition)
+            junk_case = ast.If(
+                test=ast.Compare(
+                    left=ast.Name(id=self.state_var, ctx=ast.Load()),
+                    ops=[ast.Eq()],
+                    comparators=[ast.Constant(junk_state)],
+                ),
+                body=junk_block,
+                orelse=[]
+            )
+            junk_cases.append(junk_case)
+
+        return junk_cases
+
+    def _generate_junk_code_block(self):
+        """Generate a block of junk code for fake states with opaque predicates."""
+        junk_var = self._rand("")
+        
+        # Opaque predicates that always evaluate to True
+        opaque_true_predicates = [
+            # x == x
+            ast.Compare(
+                left=ast.Name(id='len', ctx=ast.Load()),
+                ops=[ast.Is()],
+                comparators=[ast.Name(id='len', ctx=ast.Load())]
+            ),
+            # x - x == 0
+            ast.Compare(
+                left=ast.BinOp(
+                    left=ast.Constant(42),
+                    op=ast.Sub(),
+                    right=ast.Constant(42)
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(0)]
+            ),
+            # x | 0 == x
+            ast.Compare(
+                left=ast.BinOp(
+                    left=ast.Constant(1337),
+                    op=ast.BitOr(),
+                    right=ast.Constant(0)
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(1337)]
+            ),
+            # (x * 2) / 2 == x
+            ast.Compare(
+                left=ast.BinOp(
+                    left=ast.BinOp(
+                        left=ast.Constant(100),
+                        op=ast.Mult(),
+                        right=ast.Constant(2)
+                    ),
+                    op=ast.FloorDiv(),
+                    right=ast.Constant(2)
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(100)]
+            ),
+            # pow(x, 0) == 1
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='pow', ctx=ast.Load()),
+                    args=[ast.Constant(7), ast.Constant(0)],
+                    keywords=[]
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(1)]
+            ),
+            # (x ^ y) ^ y == x
+            ast.Compare(
+                left=ast.BinOp(
+                    left=ast.BinOp(
+                        left=ast.Constant(0x12345678),
+                        op=ast.BitXor(),
+                        right=ast.Constant(0xABCDEF00)
+                    ),
+                    op=ast.BitXor(),
+                    right=ast.Constant(0xABCDEF00)
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(0x12345678)]
+            ),
+            # chr(ord('A')) == 'A'
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='chr', ctx=ast.Load()),
+                    args=[ast.Call(
+                        func=ast.Name(id='ord', ctx=ast.Load()),
+                        args=[ast.Constant("A")],
+                        keywords=[]
+                    )],
+                    keywords=[]
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant("A")]
+            ),
+            # sum([1,2,3]) == 6
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='sum', ctx=ast.Load()),
+                    args=[ast.List(
+                        elts=[ast.Constant(1), ast.Constant(2), ast.Constant(3)],
+                        ctx=ast.Load()
+                    )],
+                    keywords=[]
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(6)]
+            ),
+            # abs(-42) == 42
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='abs', ctx=ast.Load()),
+                    args=[ast.UnaryOp(op=ast.USub(), operand=ast.Constant(42))],
+                    keywords=[]
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(42)]
+            ),
+            # all([True, True, True]) == True
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='all', ctx=ast.Load()),
+                    args=[ast.List(
+                        elts=[ast.Constant(True), ast.Constant(True), ast.Constant(True)],
+                        ctx=ast.Load()
+                    )],
+                    keywords=[]
+                ),
+                ops=[ast.Is()],
+                comparators=[ast.Constant(True)]
+            ),
+        ]
+        
+        # Opaque predicates that always evaluate to False
+        opaque_false_predicates = [
+            # x != x
+            ast.Compare(
+                left=ast.Name(id='len', ctx=ast.Load()),
+                ops=[ast.IsNot()],
+                comparators=[ast.Name(id='len', ctx=ast.Load())]
+            ),
+            # 1 == 0
+            ast.Compare(
+                left=ast.Constant(1),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(0)]
+            ),
+            # x & (x+1) == 0 (false for most x)
+            ast.Compare(
+                left=ast.BinOp(
+                    left=ast.Constant(100),
+                    op=ast.BitAnd(),
+                    right=ast.BinOp(
+                        left=ast.Constant(100),
+                        op=ast.Add(),
+                        right=ast.Constant(1)
+                    )
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(0)]
+            ),
+            # pow(x, 1) != x
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='pow', ctx=ast.Load()),
+                    args=[ast.Constant(42), ast.Constant(1)],
+                    keywords=[]
+                ),
+                ops=[ast.NotEq()],
+                comparators=[ast.Constant(42)]
+            ),
+            # sum([1,2,3]) != 6
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='sum', ctx=ast.Load()),
+                    args=[ast.List(
+                        elts=[ast.Constant(1), ast.Constant(2), ast.Constant(3)],
+                        ctx=ast.Load()
+                    )],
+                    keywords=[]
+                ),
+                ops=[ast.NotEq()],
+                comparators=[ast.Constant(6)]
+            ),
+            # "abc" in "def"
+            ast.Compare(
+                left=ast.Constant("abc"),
+                ops=[ast.In()],
+                comparators=[ast.Constant("def")]
+            ),
+            # isinstance(42, str)
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='isinstance', ctx=ast.Load()),
+                    args=[ast.Constant(42), ast.Name(id='str', ctx=ast.Load())],
+                    keywords=[]
+                ),
+                ops=[ast.Is()],
+                comparators=[ast.Constant(True)]
+            ),
+            # len([1,2,3]) == 5
+            ast.Compare(
+                left=ast.Call(
+                    func=ast.Name(id='len', ctx=ast.Load()),
+                    args=[ast.List(
+                        elts=[ast.Constant(1), ast.Constant(2), ast.Constant(3)],
+                        ctx=ast.Load()
+                    )],
+                    keywords=[]
+                ),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(5)]
+            ),
+        ]
+        
+        junk_statements = [
+            # Fake assignments with complex expressions
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.BinOp(
+                    left=ast.BinOp(
+                        left=ast.Constant(random.randint(1, 100)),
+                        op=ast.Mult(),
+                        right=ast.Constant(random.randint(1, 100))
+                    ),
+                    op=ast.Add(),
+                    right=ast.Constant(random.randint(1, 100))
+                )
+            ),
+            # String concatenation
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.BinOp(
+                    left=ast.Constant("junk_"),
+                    op=ast.Add(),
+                    right=ast.Constant("string_" + str(random.randint(0, 999)))
+                )
+            ),
+            # List comprehension
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.ListComp(
+                    elt=ast.Constant(random.randint(0, 10)),
+                    generators=[ast.comprehension(
+                        target=ast.Name(id='_', ctx=ast.Store()),
+                        iter=ast.Call(
+                            func=ast.Name(id='range', ctx=ast.Load()),
+                            args=[ast.Constant(random.randint(1, 5))],
+                            keywords=[]
+                        ),
+                        ifs=[],
+                        is_async=0
+                    )]
+                )
+            ),
+            # Dict comprehension
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.DictComp(
+                    key=ast.Name(id='x', ctx=ast.Load()),
+                    value=ast.BinOp(
+                        left=ast.Name(id='x', ctx=ast.Load()),
+                        op=ast.Mult(),
+                        right=ast.Constant(2)
+                    ),
+                    generators=[ast.comprehension(
+                        target=ast.Name(id='x', ctx=ast.Store()),
+                        iter=ast.Call(
+                            func=ast.Name(id='range', ctx=ast.Load()),
+                            args=[ast.Constant(random.randint(1, 5))],
+                            keywords=[]
+                        ),
+                        ifs=[],
+                        is_async=0
+                    )]
+                )
+            ),
+            # Fake if with opaque true predicate
+            ast.If(
+                test=random.choice(opaque_true_predicates),
+                body=[
+                    ast.Assign(
+                        targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                        value=ast.Constant(random.randint(1000, 9999))
+                    )
+                ],
+                orelse=[]
+            ),
+            # Fake if with opaque false predicate
+            ast.If(
+                test=random.choice(opaque_false_predicates),
+                body=[
+                    ast.Assign(
+                        targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                        value=ast.Constant(9999)
+                    )
+                ],
+                orelse=[]
+            ),
+            # Nested fake if
+            ast.If(
+                test=random.choice(opaque_true_predicates),
+                body=[
+                    ast.If(
+                        test=random.choice(opaque_false_predicates),
+                        body=[
+                            ast.Assign(
+                                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                                value=ast.Constant(0)
+                            )
+                        ],
+                        orelse=[]
+                    )
+                ],
+                orelse=[]
+            ),
+            # Expression statement with function call
+            ast.Expr(value=ast.Call(
+                func=ast.Name(id='str', ctx=ast.Load()),
+                args=[ast.Constant(random.randint(0, 10000))],
+                keywords=[]
+            )),
+            # BoolOp combining opaque predicates
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.BoolOp(
+                    op=ast.And(),
+                    values=[
+                        random.choice(opaque_true_predicates),
+                        random.choice(opaque_true_predicates)
+                    ]
+                )
+            ),
+            ast.Assign(
+                targets=[ast.Name(id=junk_var, ctx=ast.Store())],
+                value=ast.BoolOp(
+                    op=ast.Or(),
+                    values=[
+                        random.choice(opaque_false_predicates),
+                        random.choice(opaque_false_predicates)
+                    ]
+                )
+            ),
+        ]
+        # Return random subset of junk statements
+        num_statements = random.randint(3, 6)
+        return random.sample(junk_statements, min(num_statements, len(junk_statements)))
 
     # -----------------------------
     # Core
@@ -144,7 +523,7 @@ class StateMachineTransformer(ast.NodeTransformer):
         # Перемешиваем порядок IF-ветвлений для усложнения анализа
         block_indices = list(range(len(blocks)))
         random.shuffle(block_indices)
-        
+
         for idx in block_indices:
             # Получаем случайное состояние для этого блока
             state = self.block_to_state_map[idx]
@@ -162,6 +541,12 @@ class StateMachineTransformer(ast.NodeTransformer):
                     orelse=[],
                 )
             )
+
+        # Добавляем мусорные состояния для запутывания анализа
+        if self.add_junk_states:
+            junk_cases = self._generate_junk_states(num_junk_states=random.randint(2, 5))
+            cases.extend(junk_cases)
+            print(f"[STATE_MACHINE] Function '{node.name}': added {len(junk_cases)} junk states")
 
         print(f"[STATE_MACHINE] Function '{node.name}': IF statements order shuffled: {block_indices}")
 

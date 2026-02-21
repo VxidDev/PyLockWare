@@ -191,6 +191,15 @@ class ObfuscatorGUI(QMainWindow):
         string_prot_layout.addStretch()
         layout.addLayout(string_prot_layout)
 
+        # Disable traceback option
+        traceback_layout = QHBoxLayout()
+        self.disable_traceback_checkbox = QCheckBox("Disable traceback")
+        self.disable_traceback_checkbox.setToolTip("Disable traceback by setting sys.tracebacklimit = 0")
+        traceback_layout.addWidget(self.disable_traceback_checkbox)
+        traceback_layout.addWidget(self.create_help_button("Disables Python traceback output by setting sys.tracebacklimit = 0 at the start of each obfuscated file. This prevents error details from being shown."))
+        traceback_layout.addStretch()
+        layout.addLayout(traceback_layout)
+
         layout.addStretch()
         tab.setLayout(layout)
         return tab
@@ -275,6 +284,15 @@ class ObfuscatorGUI(QMainWindow):
         builtin_dispatcher_layout.addStretch()
         layout.addLayout(builtin_dispatcher_layout)
 
+        # Junk code generation option
+        junk_code_layout = QHBoxLayout()
+        self.junk_code_checkbox = QCheckBox("Junk code generation")
+        self.junk_code_checkbox.setToolTip("Enable junk code generation with fake if/elif branches")
+        junk_code_layout.addWidget(self.junk_code_checkbox)
+        junk_code_layout.addWidget(self.create_help_button("Junk code generation adds fake if/elif branches with opaque predicates that always evaluate to True or False, making code analysis harder."))
+        junk_code_layout.addStretch()
+        layout.addLayout(junk_code_layout)
+
         layout.addStretch()
         tab.setLayout(layout)
         return tab
@@ -309,6 +327,28 @@ class ObfuscatorGUI(QMainWindow):
         name_gen_layout.addWidget(self.name_gen_combo)
         name_gen_layout.addWidget(self.create_help_button("Character set used for generating random names during obfuscation."))
         layout.addLayout(name_gen_layout)
+
+        # Opaque complexity settings
+        opaque_complexity_layout = QHBoxLayout()
+        opaque_complexity_label = QLabel("Opaque complexity:")
+        self.opaque_complexity_combo = QComboBox()
+        self.opaque_complexity_combo.addItems(["Low", "Medium", "High"])
+        self.opaque_complexity_combo.setCurrentIndex(2)  # Default to High
+        opaque_complexity_layout.addWidget(opaque_complexity_label)
+        opaque_complexity_layout.addWidget(self.opaque_complexity_combo)
+        opaque_complexity_layout.addWidget(self.create_help_button("Complexity level of opaque predicates in junk code. Higher complexity makes conditions harder to analyze."))
+        layout.addLayout(opaque_complexity_layout)
+
+        # Junk density slider
+        junk_density_layout = QHBoxLayout()
+        junk_density_label = QLabel("Junk density:")
+        self.junk_density_combo = QComboBox()
+        self.junk_density_combo.addItems(["0.3 (Low)", "0.5 (Medium)", "0.7 (High)", "0.9 (Very High)"])
+        self.junk_density_combo.setCurrentIndex(1)  # Default to 0.5
+        junk_density_layout.addWidget(junk_density_label)
+        junk_density_layout.addWidget(self.junk_density_combo)
+        junk_density_layout.addWidget(self.create_help_button("Higher density adds more junk code but increases file size and may impact performance."))
+        layout.addLayout(junk_density_layout)
 
         layout.addStretch()
         tab.setLayout(layout)
@@ -349,7 +389,11 @@ class ObfuscatorGUI(QMainWindow):
             'import_obf': self.import_obf_checkbox.isChecked(),
             'state_machine': self.state_machine_checkbox.isChecked(),
             'builtin_dispatcher': self.builtin_dispatcher_checkbox.isChecked(),
+            'junk_code': self.junk_code_checkbox.isChecked(),
+            'junk_density': self._get_junk_density(),
+            'opaque_complexity': self._get_opaque_complexity(),
             'name_gen': self._get_name_gen_setting(),
+            'disable_traceback': self.disable_traceback_checkbox.isChecked(),
         }
 
         # Set anti-debug option
@@ -475,6 +519,18 @@ class ObfuscatorGUI(QMainWindow):
         index = self.name_gen_combo.currentIndex()
         name_gen_options = ['english', 'chinese', 'mixed', 'numbers', 'hex']
         return name_gen_options[index] if 0 <= index < len(name_gen_options) else 'english'
+
+    def _get_junk_density(self):
+        """Get the selected junk density value."""
+        index = self.junk_density_combo.currentIndex()
+        density_options = [0.3, 0.5, 0.7, 0.9]
+        return density_options[index] if 0 <= index < len(density_options) else 0.5
+
+    def _get_opaque_complexity(self):
+        """Get the selected opaque complexity setting from the combo box."""
+        index = self.opaque_complexity_combo.currentIndex()
+        complexity_options = ['low', 'medium', 'high']
+        return complexity_options[index] if 0 <= index < len(complexity_options) else 'high'
 
     def select_icon_file(self):
         """Open a dialog to select the icon file"""

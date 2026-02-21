@@ -17,6 +17,7 @@ class StateMachineModule(ModuleBase):
         super().__init__(config)
         self.name_gen_settings = self.config.get('name_gen', 'english')
         self.entry_point = self.config.get('entry_point', None)
+        self.add_junk_states = self.config.get('add_junk_states', True)
 
     def process(self, project_path: Path, output_path: Path) -> bool:
         """
@@ -40,7 +41,10 @@ class StateMachineModule(ModuleBase):
                 print(f"Entry point file: {entry_point_filename}")
 
             # Create an instance of the state machine transformer with name generator settings
-            transformer = StateMachineTransformer(name_gen_settings=self.name_gen_settings)
+            transformer = StateMachineTransformer(
+                name_gen_settings=self.name_gen_settings,
+                add_junk_states=self.add_junk_states
+            )
 
             # Find all Python files in the output directory
             for py_file in output_path.rglob("*.py"):

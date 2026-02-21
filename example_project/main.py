@@ -11,6 +11,6 @@ def main():
     print(f"Calculation result: {result}")
     
     print("Hello from packed PyLock application!")
-
+    
 if __name__ == "__main__":
     main()
