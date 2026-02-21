@@ -10,12 +10,15 @@ PyLockWare is a comprehensive Python obfuscation tool designed to protect your s
 - **Import Obfuscation**: Hides import statements using dynamic execution techniques
 - **State Machine Obfuscation**: Transforms functions into state machines to obfuscate control flow
 - **Builtin Dispatcher Obfuscation**: Replaces built-in function calls (print, len, input, etc.) with calls via a dispatcher class using obfuscated names
+- **Junk Code Generation**: Adds fake if/elif branches with opaque predicates that always evaluate to True or False
 - **Disable Traceback**: Hides error details by setting sys.tracebacklimit = 0 at the start of each file
 - **Configurable Name Generators**: Customizable character sets for generated obfuscated names (English, Chinese, mixed, numbers, hex)
+- **Configurable Opaque Predicates**: Multiple complexity levels for junk code conditions (Low, Medium, High)
 - **Anti-Debug Protection**: Windows AMD64 only, very unstable, especially with nuitka.
 - **Multi-Platform Support**: Works across Windows, macOS, and Linux
 - **Dual Interface**: Both command-line and graphical user interfaces
 - **Preserves Functionality**: Maintains original program behavior while protecting the source code
+- **Nuitka EXE Packaging**: Built-in support for compiling obfuscated code to standalone executables
 
 ## 📋 Requirements
 
@@ -85,6 +88,9 @@ python cli.py /path/to/your/project --entry-point main.py [options]
 | `--import-obf` | Enable import obfuscation using dynamic execution techniques |
 | `--state-machine` | Enable state machine obfuscation to transform functions into state machines |
 | `--builtin-dispatcher` | Enable builtin dispatcher obfuscation to replace built-in calls with dispatcher calls |
+| `--junk-code` | Enable junk code generation with fake if/elif branches |
+| `--junk-density {0.0-1.0}` | Junk code density from 0.0 to 1.0 (default: 0.5) |
+| `--opaque-complexity {low,medium,high}` | Complexity level of opaque predicates (default: high) |
 | `--disable-traceback` | Disable traceback by setting sys.tracebacklimit = 0 at the start of each file |
 | `--name-gen {english,chinese,mixed,numbers,hex}` | Character set for name generation (default: english) |
 
@@ -95,9 +101,19 @@ Basic obfuscation with all protections enabled:
 python cli.py /path/to/project --entry-point main.py --remap --string-prot --num-obf --import-obf --anti-debug strict
 ```
 
+Obfuscation with junk code and opaque predicates:
+```bash
+python cli.py /path/to/project --entry-point main.py --remap --junk-code --junk-density 0.7 --opaque-complexity high
+```
+
 Obfuscation with traceback disabled (hides error details):
 ```bash
 python cli.py /path/to/project --entry-point main.py --remap --string-prot --disable-traceback
+```
+
+Full obfuscation with all features including state machine and junk code:
+```bash
+python cli.py /path/to/project --entry-point main.py --remap --string-prot --num-obf --state-machine --builtin-dispatcher --junk-code --junk-density 0.8 --opaque-complexity high
 ```
 
 Light obfuscation with only identifier remapping:
@@ -160,6 +176,33 @@ result = _XyZ789.NoPqRs(items)
 ```
 
 The dispatcher is automatically created and copied to each package directory, ensuring proper imports regardless of the module's location in the project structure.
+
+### Junk Code Generation
+Adds fake if/elif branches with opaque predicates that always evaluate to True or False. These branches contain dead code that never executes but significantly complicates code analysis and reverse engineering.
+
+**Features:**
+- **Opaque Predicates**: Complex conditions that always evaluate to True or False (e.g., `pow(x, 0) == 1`, `(x ^ y) ^ y == x`, `chr(ord('A')) == 'A'`)
+- **Configurable Density**: Control how much junk code is added (0.0 to 1.0)
+- **Multiple Complexity Levels**: 
+  - **Low**: Simple mathematical identities
+  - **Medium**: More complex expressions and built-in function calls
+  - **High**: Very complex predicates with nested conditions and boolean combinations
+
+**Example opaque predicates:**
+```python
+# Always True:
+(x * 2) // 2 == x
+pow(7, 0) == 1
+(x ^ y) ^ y == x
+chr(ord('A')) == 'A'
+sum([1, 2, 3]) == 6
+
+# Always False:
+pow(42, 1) != 42
+"abc" in "def"
+isinstance(42, str)
+sum([1, 2, 3]) != 6
+```
 
 ### Configurable Name Generators
 Provides customizable character sets for generating obfuscated names, including:
